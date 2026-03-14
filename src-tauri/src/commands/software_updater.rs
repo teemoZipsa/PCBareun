@@ -14,6 +14,7 @@ pub struct SoftwareInfo {
 pub fn get_updatable_software() -> Result<Vec<SoftwareInfo>, String> {
     // Reuse installed programs list, filtering to those with version info
     let ps_script = r#"
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 $paths = @(
     'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*',
     'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*',

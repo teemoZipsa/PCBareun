@@ -48,6 +48,7 @@ const SAFE_DNS: &[&str] = &[
 pub fn check_dns() -> Result<DnsCheckResult, String> {
     // 1. Get DNS servers per adapter
     let ps = r#"
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 Get-DnsClientServerAddress -AddressFamily IPv4 |
   Where-Object { $_.ServerAddresses.Count -gt 0 } |
   ForEach-Object {

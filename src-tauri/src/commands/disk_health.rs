@@ -22,6 +22,7 @@ $disks = Get-PhysicalDisk -ErrorAction Stop
 $result = @()
 foreach ($d in $disks) {
     $rel = $null
+    [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
     try {
         $rel = $d | Get-StorageReliabilityCounter -ErrorAction Stop
     } catch {}

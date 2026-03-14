@@ -210,6 +210,7 @@ fn scan_registry_leftovers(search_terms: &[String]) -> Vec<LeftoverItem> {
 
     let ps = format!(
         r#"
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 $terms = @({terms})
 $results = @()
 $regPaths = @({paths})

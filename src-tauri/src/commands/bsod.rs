@@ -57,6 +57,7 @@ try {
         LogName = 'System'
         Id = 1001
     } -MaxEvents 50 -ErrorAction Stop |
+    [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
     Where-Object { $_.ProviderName -eq 'Microsoft-Windows-WER-SystemErrorReporting' }
 
     $result = @()

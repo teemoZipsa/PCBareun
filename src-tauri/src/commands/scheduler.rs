@@ -16,6 +16,7 @@ pub struct ScheduledTask {
 #[tauri::command]
 pub fn get_scheduled_tasks() -> Result<Vec<ScheduledTask>, String> {
     let ps = r#"
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 Get-ScheduledTask | Where-Object { $_.TaskPath -notlike '\Microsoft\*' } | ForEach-Object {
     $info = $_ | Get-ScheduledTaskInfo -ErrorAction SilentlyContinue
     $trig = ''

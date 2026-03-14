@@ -13,6 +13,7 @@ pub struct ContextMenuItem {
 #[tauri::command]
 pub fn get_context_menu_items() -> Result<Vec<ContextMenuItem>, String> {
     let ps = r#"
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 $results = @()
 
 # Shell context menu (files)

@@ -16,15 +16,17 @@ pub fn get_services() -> Result<Vec<WindowsService>, String> {
         .args([
             "-NoProfile",
             "-Command",
-            r#"$wmiMap = @{}
-Get-CimInstance Win32_Service -ErrorAction SilentlyContinue | ForEach-Object { $wmiMap[$_.Name] = $_.Description }
+            r#"[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$wmiMap = @{}
+Get-CimInstance Win32_Service -ErrorAction SilentlyContinue | ForEach-Object { $wmiMap[$_.Name] = if($_.Description){$_.Description}else{''} }
 Get-Service | ForEach-Object {
+    $desc = if($wmiMap.ContainsKey($_.ServiceName) -and $wmiMap[$_.ServiceName]) { $wmiMap[$_.ServiceName] } else { '' }
     [PSCustomObject]@{
         name = $_.ServiceName
         display_name = $_.DisplayName
         status = $_.Status.ToString()
         start_type = $_.StartType.ToString()
-        description = if($wmiMap.ContainsKey($_.ServiceName)) { $wmiMap[$_.ServiceName] } else { '' }
+        description = $desc
     }
 } | ConvertTo-Json -Compress"#,
         ])

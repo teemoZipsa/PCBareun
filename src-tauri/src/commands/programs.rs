@@ -15,6 +15,7 @@ pub struct InstalledProgram {
 #[tauri::command]
 pub fn get_installed_programs() -> Result<Vec<InstalledProgram>, String> {
     let ps_script = r#"
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 $paths = @(
     'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*',
     'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*',
