@@ -19,11 +19,11 @@ pub fn get_services() -> Result<Vec<WindowsService>, String> {
             r#"Get-Service | ForEach-Object {
                 $wmi = Get-WmiObject Win32_Service -Filter "Name='$($_.ServiceName)'" -ErrorAction SilentlyContinue
                 [PSCustomObject]@{
-                    Name = $_.ServiceName
-                    DisplayName = $_.DisplayName
-                    Status = $_.Status.ToString()
-                    StartType = $_.StartType.ToString()
-                    Description = if($wmi) { $wmi.Description } else { '' }
+                    name = $_.ServiceName
+                    display_name = $_.DisplayName
+                    status = $_.Status.ToString()
+                    start_type = $_.StartType.ToString()
+                    description = if($wmi) { $wmi.Description } else { '' }
                 }
             } | ConvertTo-Json -Compress"#,
         ])

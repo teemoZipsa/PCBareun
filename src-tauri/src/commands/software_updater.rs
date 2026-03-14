@@ -25,11 +25,11 @@ foreach ($path in $paths) {
         $_.DisplayName -and $_.DisplayName.Trim() -ne '' -and $_.DisplayVersion
     } | ForEach-Object {
         $results += [PSCustomObject]@{
-            Name = $_.DisplayName
-            CurrentVersion = if($_.DisplayVersion) { $_.DisplayVersion } else { '' }
-            Publisher = if($_.Publisher) { $_.Publisher } else { '' }
-            InstallDate = if($_.InstallDate) { $_.InstallDate } else { '' }
-            UninstallString = if($_.UninstallString) { $_.UninstallString } else { '' }
+            name = $_.DisplayName
+            current_version = if($_.DisplayVersion) { $_.DisplayVersion } else { '' }
+            publisher = if($_.Publisher) { $_.Publisher } else { '' }
+            install_date = if($_.InstallDate) { $_.InstallDate } else { '' }
+            uninstall_string = if($_.UninstallString) { $_.UninstallString } else { '' }
         }
     }
 }

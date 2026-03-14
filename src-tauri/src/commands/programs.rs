@@ -28,17 +28,17 @@ foreach ($path in $paths) {
         $sizeKB = if($_.EstimatedSize) { [math]::Round($_.EstimatedSize / 1024, 1) } else { 0 }
         $regKey = $_.PSPath -replace '^.*\\\\', ''
         $results += [PSCustomObject]@{
-            Name = $_.DisplayName
-            Publisher = if($_.Publisher) { $_.Publisher } else { '' }
-            Version = if($_.DisplayVersion) { $_.DisplayVersion } else { '' }
-            InstallDate = if($_.InstallDate) { $_.InstallDate } else { '' }
-            SizeMB = $sizeKB
-            UninstallString = if($_.UninstallString) { $_.UninstallString } else { '' }
-            RegistryKey = $regKey
+            name = $_.DisplayName
+            publisher = if($_.Publisher) { $_.Publisher } else { '' }
+            version = if($_.DisplayVersion) { $_.DisplayVersion } else { '' }
+            install_date = if($_.InstallDate) { $_.InstallDate } else { '' }
+            size_mb = $sizeKB
+            uninstall_string = if($_.UninstallString) { $_.UninstallString } else { '' }
+            registry_key = $regKey
         }
     }
 }
-$results | Sort-Object Name -Unique | ConvertTo-Json -Compress
+$results | Sort-Object name -Unique | ConvertTo-Json -Compress
 "#;
 
     let output = Command::new("powershell")

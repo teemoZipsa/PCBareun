@@ -52,9 +52,9 @@ Get-DnsClientServerAddress -AddressFamily IPv4 |
   Where-Object { $_.ServerAddresses.Count -gt 0 } |
   ForEach-Object {
     [PSCustomObject]@{
-      Name = $_.InterfaceAlias
-      DnsServers = $_.ServerAddresses
-      InterfaceIndex = $_.InterfaceIndex
+      name = $_.InterfaceAlias
+      dns_servers = $_.ServerAddresses
+      interface_index = $_.InterfaceIndex
     }
   } | ConvertTo-Json -Compress
 "#;

@@ -220,9 +220,9 @@ foreach ($rp in $regPaths) {{
             foreach ($t in $terms) {{
                 if ($keyName -like "*$t*") {{
                     $results += [PSCustomObject]@{{
-                        Path = $_.PSPath -replace 'Microsoft\.PowerShell\.Core\\Registry::', ''
-                        Kind = 'registry'
-                        SizeBytes = 0
+                        path = $_.PSPath -replace 'Microsoft\.PowerShell\.Core\\Registry::', ''
+                        kind = 'registry'
+                        size_bytes = 0
                     }}
                     break
                 }}

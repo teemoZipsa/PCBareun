@@ -47,11 +47,11 @@ foreach ($sp in $shellPaths) {
             $regPath = $_.PSPath -replace 'Microsoft\.PowerShell\.Core\\Registry::', ''
 
             $results += [PSCustomObject]@{
-                Name = $displayName
-                Command = $cmd
-                Icon = $icon
-                RegistryPath = $regPath
-                Location = $sp.Location
+                name = $displayName
+                command = $cmd
+                icon = $icon
+                registry_path = $regPath
+                location = $sp.Location
             }
         }
     }

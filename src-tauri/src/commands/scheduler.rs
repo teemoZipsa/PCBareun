@@ -26,14 +26,14 @@ Get-ScheduledTask | Where-Object { $_.TaskPath -notlike '\Microsoft\*' } | ForEa
         if ($t.StartBoundary) { $trig += ' ' + $t.StartBoundary.Substring(0,16) }
     }
     [PSCustomObject]@{
-        Name = $_.TaskName
-        Path = $_.TaskPath
-        State = $_.State.ToString()
-        LastRun = if($info -and $info.LastRunTime -and $info.LastRunTime.Year -gt 1601){ $info.LastRunTime.ToString('yyyy-MM-dd HH:mm') } else { '' }
-        NextRun = if($info -and $info.NextRunTime -and $info.NextRunTime.Year -gt 1601){ $info.NextRunTime.ToString('yyyy-MM-dd HH:mm') } else { '' }
-        Trigger = $trig
-        Author = if($_.Author){ $_.Author } else { '' }
-        Description = if($_.Description){ $_.Description.Substring(0,[Math]::Min(200,$_.Description.Length)) } else { '' }
+        name = $_.TaskName
+        path = $_.TaskPath
+        state = $_.State.ToString()
+        last_run = if($info -and $info.LastRunTime -and $info.LastRunTime.Year -gt 1601){ $info.LastRunTime.ToString('yyyy-MM-dd HH:mm') } else { '' }
+        next_run = if($info -and $info.NextRunTime -and $info.NextRunTime.Year -gt 1601){ $info.NextRunTime.ToString('yyyy-MM-dd HH:mm') } else { '' }
+        trigger = $trig
+        author = if($_.Author){ $_.Author } else { '' }
+        description = if($_.Description){ $_.Description.Substring(0,[Math]::Min(200,$_.Description.Length)) } else { '' }
     }
 } | ConvertTo-Json -Compress
 "#;
