@@ -1,0 +1,16 @@
+pub mod bsod;
+pub mod dashboard;
+pub mod deep_uninstaller;
+pub mod disk_health;
+pub mod disk_usage;
+pub mod dns;
+pub mod duplicates;
+pub mod force_delete;
+pub mod hardware;
+pub mod privacy;
+pub mod programs;
+pub mod scheduler;
+pub mod services;
+pub mod shutdown;
+pub mod software_updater;
+pub mod context_menu;

@@ -1,0 +1,64 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
+  "productName": "PC Bareun",
+  "version": "0.1.0",
+  "identifier": "com.pcbareun.app",
+  "build": {
+    "frontendDist": "../dist",
+    "devUrl": "http://localhost:1420",
+    "beforeDevCommand": "npm run dev",
+    "beforeBuildCommand": "npm run build"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "피씨바른 - PC Bareun",
+        "width": 1200,
+        "height": 800,
+        "minWidth": 900,
+        "minHeight": 600,
+        "resizable": true,
+        "fullscreen": false
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["nsis", "msi"],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "windows": {
+      "nsis": {
+        "languages": ["Korean", "English"],
+        "displayLanguageSelector": true,
+        "installMode": "both",
+        "startMenuFolder": "피씨바른",
+        "headerImage": null,
+        "sidebarImage": null
+      },
+      "certificateThumbprint": null,
+      "timestampUrl": null
+    },
+    "shortDescription": "현대적 PC 관리 유틸리티",
+    "longDescription": "피씨바른(PC Bareun)은 고클린에서 영감을 받은 현대적 PC 관리 유틸리티입니다. 서비스 관리, 프로그램 삭제, 개인정보 삭제, 하드웨어 모니터링 등 다양한 기능을 제공합니다.",
+    "copyright": "© 2026 PC Bareun",
+    "category": "Utility",
+    "publisher": "PC Bareun"
+  },
+  "plugins": {
+    "updater": {
+      "endpoints": [
+        "https://github.com/teemoZipsa/PCBareun/releases/latest/download/latest.json"
+      ],
+      "pubkey": ""
+    }
+  }
+}
