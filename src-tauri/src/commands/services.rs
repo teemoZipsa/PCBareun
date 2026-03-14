@@ -16,16 +16,17 @@ pub fn get_services() -> Result<Vec<WindowsService>, String> {
         .args([
             "-NoProfile",
             "-Command",
-            r#"Get-Service | ForEach-Object {
-                $wmi = Get-WmiObject Win32_Service -Filter "Name='$($_.ServiceName)'" -ErrorAction SilentlyContinue
-                [PSCustomObject]@{
-                    name = $_.ServiceName
-                    display_name = $_.DisplayName
-                    status = $_.Status.ToString()
-                    start_type = $_.StartType.ToString()
-                    description = if($wmi) { $wmi.Description } else { '' }
-                }
-            } | ConvertTo-Json -Compress"#,
+            r#"$wmiMap = @{}
+Get-CimInstance Win32_Service -ErrorAction SilentlyContinue | ForEach-Object { $wmiMap[$_.Name] = $_.Description }
+Get-Service | ForEach-Object {
+    [PSCustomObject]@{
+        name = $_.ServiceName
+        display_name = $_.DisplayName
+        status = $_.Status.ToString()
+        start_type = $_.StartType.ToString()
+        description = if($wmiMap.ContainsKey($_.ServiceName)) { $wmiMap[$_.ServiceName] } else { '' }
+    }
+} | ConvertTo-Json -Compress"#,
         ])
         .output()
         .map_err(|e| format!("Failed to execute PowerShell: {}", e))?;
