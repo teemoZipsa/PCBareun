@@ -6,13 +6,15 @@ import {
   Play,
   Square,
   RotateCcw,
-  Filter,
   AlertCircle,
   CheckCircle2,
   Loader2,
   ChevronDown,
+  Power,
+  PowerOff,
 } from "lucide-react";
-import Card from "@/components/common/Card";
+import SafetyBanner from "@/components/common/SafetyBanner";
+import SkeletonRows from "@/components/common/SkeletonRows";
 
 interface WindowsService {
   name: string;
@@ -25,18 +27,15 @@ interface WindowsService {
 type StatusFilter = "all" | "Running" | "Stopped";
 type StartTypeFilter = "all" | "Automatic" | "Manual" | "Disabled";
 
+
 export default function ServiceManagerPage() {
   const [services, setServices] = useState<WindowsService[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
-  const [startTypeFilter, setStartTypeFilter] =
-    useState<StartTypeFilter>("all");
-  const [actionMessage, setActionMessage] = useState<{
-    type: "success" | "error";
-    text: string;
-  } | null>(null);
+  const [startTypeFilter, setStartTypeFilter] = useState<StartTypeFilter>("all");
+  const [actionMessage, setActionMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   const fetchServices = useCallback(async () => {
@@ -51,9 +50,7 @@ export default function ServiceManagerPage() {
     }
   }, []);
 
-  useEffect(() => {
-    fetchServices();
-  }, [fetchServices]);
+  useEffect(() => { fetchServices(); }, [fetchServices]);
 
   const filteredServices = useMemo(() => {
     return services.filter((s) => {
@@ -62,13 +59,8 @@ export default function ServiceManagerPage() {
         s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         s.display_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         s.description.toLowerCase().includes(searchQuery.toLowerCase());
-
-      const matchesStatus =
-        statusFilter === "all" || s.status === statusFilter;
-
-      const matchesStartType =
-        startTypeFilter === "all" || s.start_type === startTypeFilter;
-
+      const matchesStatus = statusFilter === "all" || s.status === statusFilter;
+      const matchesStartType = startTypeFilter === "all" || s.start_type === startTypeFilter;
       return matchesSearch && matchesStatus && matchesStartType;
     });
   }, [services, searchQuery, statusFilter, startTypeFilter]);
@@ -79,16 +71,11 @@ export default function ServiceManagerPage() {
     return { total: services.length, running, stopped };
   }, [services]);
 
-  const handleAction = async (
-    serviceName: string,
-    action: "start" | "stop" | "restart"
-  ) => {
+  const handleAction = async (serviceName: string, action: "start" | "stop" | "restart") => {
     setActionLoading(`${serviceName}-${action}`);
     setActionMessage(null);
     try {
-      const result = await invoke<string>("control_service", {
-        payload: { name: serviceName, action },
-      });
+      const result = await invoke<string>("control_service", { payload: { name: serviceName, action } });
       setActionMessage({ type: "success", text: result });
       await fetchServices();
     } catch (err) {
@@ -98,17 +85,11 @@ export default function ServiceManagerPage() {
     }
   };
 
-  const handleStartTypeChange = async (
-    serviceName: string,
-    newStartType: string
-  ) => {
+  const handleStartTypeChange = async (serviceName: string, newStartType: string) => {
     setActionLoading(`${serviceName}-starttype`);
     setActionMessage(null);
     try {
-      const result = await invoke<string>("set_service_start_type", {
-        name: serviceName,
-        startType: newStartType,
-      });
+      const result = await invoke<string>("set_service_start_type", { name: serviceName, startType: newStartType });
       setActionMessage({ type: "success", text: result });
       await fetchServices();
     } catch (err) {
@@ -118,16 +99,7 @@ export default function ServiceManagerPage() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex h-64 items-center justify-center">
-        <div className="flex items-center gap-3 text-[var(--color-muted-foreground)]">
-          <Loader2 className="h-5 w-5 animate-spin" />
-          <span>서비스 목록을 불러오는 중...</span>
-        </div>
-      </div>
-    );
-  }
+  if (loading) return <SkeletonRows rows={10} cols={4} />;
 
   if (error) {
     return (
@@ -136,10 +108,7 @@ export default function ServiceManagerPage() {
           <AlertCircle className="h-8 w-8" />
           <p className="text-sm">{error}</p>
           <button
-            onClick={() => {
-              setLoading(true);
-              fetchServices();
-            }}
+            onClick={() => { setLoading(true); fetchServices(); }}
             className="rounded-[var(--radius-md)] bg-[var(--color-primary)] px-4 py-1.5 text-sm text-white hover:opacity-90"
           >
             다시 시도
@@ -149,22 +118,22 @@ export default function ServiceManagerPage() {
     );
   }
 
+  const statusOptions: { key: StatusFilter; label: string }[] = [
+    { key: "all", label: "전체" },
+    { key: "Running", label: "실행 중" },
+    { key: "Stopped", label: "중지" },
+  ];
+
+  const startTypeOptions: { key: StartTypeFilter; label: string }[] = [
+    { key: "all", label: "전체" },
+    { key: "Automatic", label: "자동" },
+    { key: "Manual", label: "수동" },
+    { key: "Disabled", label: "사용 안 함" },
+  ];
+
   return (
     <div className="space-y-4">
-      {/* 상단 통계 */}
-      <div className="grid grid-cols-3 gap-3">
-        <StatCard label="전체 서비스" value={stats.total} />
-        <StatCard
-          label="실행 중"
-          value={stats.running}
-          color="var(--color-success)"
-        />
-        <StatCard
-          label="중지됨"
-          value={stats.stopped}
-          color="var(--color-muted-foreground)"
-        />
-      </div>
+      <SafetyBanner message="Windows 핵심 서비스는 변경할 수 없도록 보호됩니다. 여기서는 타사 프로그램 서비스만 관리할 수 있습니다." />
 
       {/* 알림 메시지 */}
       {actionMessage && (
@@ -175,280 +144,192 @@ export default function ServiceManagerPage() {
               : "border-red-500/30 bg-red-500/10 text-red-400"
           }`}
         >
-          {actionMessage.type === "success" ? (
-            <CheckCircle2 className="h-4 w-4 shrink-0" />
-          ) : (
-            <AlertCircle className="h-4 w-4 shrink-0" />
-          )}
+          {actionMessage.type === "success" ? <CheckCircle2 className="h-4 w-4 shrink-0" /> : <AlertCircle className="h-4 w-4 shrink-0" />}
           <span>{actionMessage.text}</span>
-          <button
-            onClick={() => setActionMessage(null)}
-            className="ml-auto text-xs opacity-60 hover:opacity-100"
-          >
-            닫기
-          </button>
+          <button onClick={() => setActionMessage(null)} className="ml-auto text-xs opacity-60 hover:opacity-100">닫기</button>
         </div>
       )}
 
-      {/* 검색 및 필터 */}
-      <Card>
-        <div className="flex flex-wrap items-center gap-3">
-          {/* 검색 */}
-          <div className="relative min-w-[200px] flex-1">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-muted-foreground)]" />
-            <input
-              type="text"
-              placeholder="서비스 이름, 표시 이름, 설명 검색..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-background)] py-2 pl-9 pr-3 text-sm text-[var(--color-foreground)] placeholder:text-[var(--color-muted-foreground)] focus:border-[var(--color-primary)] focus:outline-none"
-            />
-          </div>
-
-          {/* 상태 필터 */}
-          <div className="flex items-center gap-1.5">
-            <Filter className="h-3.5 w-3.5 text-[var(--color-muted-foreground)]" />
-            <select
-              value={statusFilter}
-              onChange={(e) =>
-                setStatusFilter(e.target.value as StatusFilter)
-              }
-              className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-background)] px-2.5 py-2 text-xs text-[var(--color-foreground)] focus:outline-none"
-            >
-              <option value="all">모든 상태</option>
-              <option value="Running">실행 중</option>
-              <option value="Stopped">중지됨</option>
-            </select>
-          </div>
-
-          {/* 시작 유형 필터 */}
-          <select
-            value={startTypeFilter}
-            onChange={(e) =>
-              setStartTypeFilter(e.target.value as StartTypeFilter)
-            }
-            className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-background)] px-2.5 py-2 text-xs text-[var(--color-foreground)] focus:outline-none"
-          >
-            <option value="all">모든 시작 유형</option>
-            <option value="Automatic">자동</option>
-            <option value="Manual">수동</option>
-            <option value="Disabled">사용 안 함</option>
-          </select>
-
-          {/* 새로고침 */}
-          <button
-            onClick={() => {
-              setLoading(true);
-              fetchServices();
-            }}
-            className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-2 text-xs font-medium text-[var(--color-card-foreground)] transition-colors hover:bg-[var(--color-muted)]"
-          >
-            <RotateCcw className="h-3.5 w-3.5" />
-          </button>
+      {/* ── 통합 바: 통계 칩 + 검색 + 필터 + 새로고침 ── */}
+      <div className="flex flex-wrap items-center gap-2">
+        {/* 통계 칩 */}
+        <div className="flex items-center gap-1.5 rounded-full border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-1.5 text-xs">
+          <Settings2 className="h-3.5 w-3.5 text-[var(--color-primary)]" />
+          <span className="font-bold text-[var(--color-card-foreground)]">{stats.total}</span>
+          <span className="text-[var(--color-muted-foreground)]">전체</span>
         </div>
-      </Card>
-
-      {/* 서비스 테이블 */}
-      <Card
-        title={`서비스 목록 (${filteredServices.length})`}
-        icon={<Settings2 className="h-4 w-4" />}
-      >
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-[var(--color-border)] text-left text-xs font-medium text-[var(--color-muted-foreground)]">
-                <th className="pb-3 pr-3">상태</th>
-                <th className="pb-3 pr-3">서비스 이름</th>
-                <th className="hidden pb-3 pr-3 md:table-cell">표시 이름</th>
-                <th className="pb-3 pr-3">시작 유형</th>
-                <th className="pb-3 text-right">작업</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[var(--color-border)]">
-              {filteredServices.map((service) => (
-                <ServiceRow
-                  key={service.name}
-                  service={service}
-                  actionLoading={actionLoading}
-                  onAction={handleAction}
-                  onStartTypeChange={handleStartTypeChange}
-                />
-              ))}
-            </tbody>
-          </table>
-          {filteredServices.length === 0 && (
-            <p className="py-8 text-center text-sm text-[var(--color-muted-foreground)]">
-              검색 결과가 없습니다.
-            </p>
-          )}
+        <div className="flex items-center gap-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/5 px-3 py-1.5 text-xs">
+          <Power className="h-3.5 w-3.5 text-emerald-400" />
+          <span className="font-bold text-emerald-400">{stats.running}</span>
+          <span className="text-emerald-400/70">실행 중</span>
         </div>
-      </Card>
-    </div>
-  );
-}
+        <div className="flex items-center gap-1.5 rounded-full border border-gray-500/20 bg-gray-500/5 px-3 py-1.5 text-xs">
+          <PowerOff className="h-3.5 w-3.5 text-gray-400" />
+          <span className="font-bold text-gray-400">{stats.stopped}</span>
+          <span className="text-gray-400/70">중지</span>
+        </div>
 
-/* ---------- Sub-components ---------- */
-
-function StatCard({
-  label,
-  value,
-  color,
-}: {
-  label: string;
-  value: number;
-  color?: string;
-}) {
-  return (
-    <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card)] px-4 py-3">
-      <p className="text-xs text-[var(--color-muted-foreground)]">{label}</p>
-      <p
-        className="mt-1 text-2xl font-bold"
-        style={{ color: color || "var(--color-card-foreground)" }}
-      >
-        {value}
-      </p>
-    </div>
-  );
-}
-
-function ServiceRow({
-  service,
-  actionLoading,
-  onAction,
-  onStartTypeChange,
-}: {
-  service: WindowsService;
-  actionLoading: string | null;
-  onAction: (name: string, action: "start" | "stop" | "restart") => void;
-  onStartTypeChange: (name: string, startType: string) => void;
-}) {
-  const isRunning = service.status === "Running";
-
-  return (
-    <tr className="group transition-colors hover:bg-[var(--color-muted)]/30">
-      {/* 상태 */}
-      <td className="py-3 pr-3">
-        <span
-          className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium ${
-            isRunning
-              ? "bg-green-500/15 text-green-500"
-              : "bg-[var(--color-muted)] text-[var(--color-muted-foreground)]"
-          }`}
-        >
-          <span
-            className={`h-1.5 w-1.5 rounded-full ${
-              isRunning ? "bg-green-500" : "bg-[var(--color-muted-foreground)]"
-            }`}
+        {/* 검색 */}
+        <div className="relative flex-1 min-w-[180px]">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-muted-foreground)]" />
+          <input
+            type="text"
+            placeholder="서비스 이름, 표시 이름, 설명 검색..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full rounded-full border border-[var(--color-border)] bg-[var(--color-card)] py-1.5 pl-9 pr-3 text-sm focus:border-[var(--color-primary)] focus:outline-none"
           />
-          {isRunning ? "실행 중" : "중지"}
-        </span>
-      </td>
+        </div>
 
-      {/* 서비스 이름 */}
-      <td className="py-3 pr-3">
-        <div>
-          <p className="font-medium text-[var(--color-card-foreground)]">
-            {service.name}
+        {/* 상태 필터 - 세그먼트 */}
+        <div className="flex items-center gap-0.5 rounded-full border border-[var(--color-border)] bg-[var(--color-card)] p-0.5">
+          {statusOptions.map((opt) => (
+            <button
+              key={opt.key}
+              onClick={() => setStatusFilter(opt.key)}
+              className={`rounded-full px-2.5 py-1 text-[11px] font-medium transition-all ${
+                statusFilter === opt.key
+                  ? "bg-[var(--color-primary)] text-white"
+                  : "text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)]"
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+
+        {/* 시작 유형 필터 - 세그먼트 */}
+        <div className="flex items-center gap-0.5 rounded-full border border-[var(--color-border)] bg-[var(--color-card)] p-0.5">
+          {startTypeOptions.map((opt) => (
+            <button
+              key={opt.key}
+              onClick={() => setStartTypeFilter(opt.key)}
+              className={`rounded-full px-2.5 py-1 text-[11px] font-medium transition-all ${
+                startTypeFilter === opt.key
+                  ? "bg-[var(--color-primary)] text-white"
+                  : "text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)]"
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+
+        {/* 새로고침 */}
+        <button
+          onClick={() => { setLoading(true); fetchServices(); }}
+          className="rounded-full border border-[var(--color-border)] bg-[var(--color-card)] p-1.5 text-[var(--color-muted-foreground)] transition-colors hover:bg-[var(--color-muted)] hover:text-[var(--color-foreground)]"
+        >
+          <RotateCcw className="h-3.5 w-3.5" />
+        </button>
+      </div>
+
+      {/* ── 서비스 카드 리스트 ── */}
+      <div className="space-y-1.5">
+        {filteredServices.length === 0 ? (
+          <p className="py-12 text-center text-sm text-[var(--color-muted-foreground)]">
+            검색 결과가 없습니다.
           </p>
-          {/* 모바일에서 표시 이름 보이기 */}
-          <p className="mt-0.5 text-xs text-[var(--color-muted-foreground)] md:hidden">
-            {service.display_name}
-          </p>
-          {service.description && (
-            <p className="mt-0.5 line-clamp-1 text-xs text-[var(--color-muted-foreground)]">
-              {service.description}
-            </p>
-          )}
-        </div>
-      </td>
+        ) : (
+          filteredServices.map((service) => {
+            const isRunning = service.status === "Running";
+            const isStopLoading = actionLoading === `${service.name}-stop`;
+            const isStartLoading = actionLoading === `${service.name}-start`;
+            const isRestartLoading = actionLoading === `${service.name}-restart`;
+            const isStartTypeLoading = actionLoading === `${service.name}-starttype`;
+            const anyLoading = isStopLoading || isStartLoading || isRestartLoading || isStartTypeLoading;
 
-      {/* 표시 이름 (데스크톱) */}
-      <td className="hidden py-3 pr-3 md:table-cell">
-        <span className="text-[var(--color-card-foreground)]">
-          {service.display_name}
-        </span>
-      </td>
+            return (
+              <div
+                key={service.name}
+                className="flex items-center gap-3 rounded-[var(--radius-md)] border border-transparent px-4 py-3 transition-all hover:border-[var(--color-border)] hover:bg-[var(--color-muted)]/20"
+              >
+                {/* 상태 뱃지 */}
+                <span className={`shrink-0 inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-2 py-0.5 text-[10px] font-semibold ${
+                  isRunning
+                    ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-400"
+                    : "border-gray-500/20 bg-gray-500/10 text-gray-400"
+                }`}>
+                  <span className={`h-1.5 w-1.5 rounded-full ${isRunning ? "bg-emerald-400" : "bg-gray-400"}`} />
+                  {isRunning ? "실행중" : "중지"}
+                </span>
 
-      {/* 시작 유형 */}
-      <td className="py-3 pr-3">
-        <div className="relative inline-block">
-          <select
-            value={service.start_type}
-            onChange={(e) => onStartTypeChange(service.name, e.target.value)}
-            disabled={actionLoading === `${service.name}-starttype`}
-            className="appearance-none rounded-[var(--radius-sm)] border border-[var(--color-border)] bg-[var(--color-background)] py-1 pl-2 pr-6 text-xs text-[var(--color-foreground)] focus:outline-none disabled:opacity-50"
-          >
-            <option value="Automatic">자동</option>
-            <option value="Manual">수동</option>
-            <option value="Disabled">사용 안 함</option>
-          </select>
-          <ChevronDown className="pointer-events-none absolute right-1.5 top-1/2 h-3 w-3 -translate-y-1/2 text-[var(--color-muted-foreground)]" />
-        </div>
-      </td>
+                {/* 서비스 이름 + 표시 이름 + 설명 */}
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <p className="truncate text-sm font-medium text-[var(--color-card-foreground)]">
+                      {service.display_name}
+                    </p>
+                    <span className="hidden shrink-0 rounded bg-[var(--color-muted)]/50 px-1.5 py-0.5 text-[10px] text-[var(--color-muted-foreground)] sm:inline">
+                      {service.name}
+                    </span>
+                  </div>
+                  {service.description && (
+                    <p className="mt-0.5 truncate text-xs text-[var(--color-muted-foreground)]">
+                      {service.description}
+                    </p>
+                  )}
+                </div>
 
-      {/* 작업 버튼 */}
-      <td className="py-3 text-right">
-        <div className="flex items-center justify-end gap-1">
-          {isRunning ? (
-            <>
-              <ActionButton
-                icon={<Square className="h-3 w-3" />}
-                label="중지"
-                onClick={() => onAction(service.name, "stop")}
-                loading={actionLoading === `${service.name}-stop`}
-                variant="danger"
-              />
-              <ActionButton
-                icon={<RotateCcw className="h-3 w-3" />}
-                label="재시작"
-                onClick={() => onAction(service.name, "restart")}
-                loading={actionLoading === `${service.name}-restart`}
-              />
-            </>
-          ) : (
-            <ActionButton
-              icon={<Play className="h-3 w-3" />}
-              label="시작"
-              onClick={() => onAction(service.name, "start")}
-              loading={actionLoading === `${service.name}-start`}
-              variant="success"
-            />
-          )}
-        </div>
-      </td>
-    </tr>
-  );
-}
+                {/* 시작 유형 */}
+                <div className="relative shrink-0">
+                  <select
+                    value={service.start_type}
+                    onChange={(e) => handleStartTypeChange(service.name, e.target.value)}
+                    disabled={isStartTypeLoading}
+                    className="appearance-none rounded-full border border-[var(--color-border)] bg-[var(--color-card)] py-1 pl-2.5 pr-6 text-[11px] font-medium text-[var(--color-foreground)] focus:outline-none disabled:opacity-50"
+                  >
+                    <option value="Automatic">자동</option>
+                    <option value="Manual">수동</option>
+                    <option value="Disabled">사용 안 함</option>
+                  </select>
+                  <ChevronDown className="pointer-events-none absolute right-1.5 top-1/2 h-3 w-3 -translate-y-1/2 text-[var(--color-muted-foreground)]" />
+                </div>
 
-function ActionButton({
-  icon,
-  label,
-  onClick,
-  loading,
-  variant = "default",
-}: {
-  icon: React.ReactNode;
-  label: string;
-  onClick: () => void;
-  loading: boolean;
-  variant?: "default" | "success" | "danger";
-}) {
-  const colorMap = {
-    default:
-      "border-[var(--color-border)] text-[var(--color-card-foreground)] hover:bg-[var(--color-muted)]",
-    success: "border-green-500/30 text-green-500 hover:bg-green-500/10",
-    danger: "border-red-500/30 text-red-400 hover:bg-red-500/10",
-  };
+                {/* 작업 버튼 */}
+                <div className="flex shrink-0 items-center gap-1">
+                  {isRunning ? (
+                    <>
+                      <button
+                        onClick={() => handleAction(service.name, "stop")}
+                        disabled={anyLoading}
+                        className="flex items-center gap-1 rounded-[var(--radius-sm)] border border-red-500/20 px-2 py-1 text-xs font-medium text-red-400 transition-colors hover:bg-red-500/10 disabled:opacity-50"
+                      >
+                        {isStopLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Square className="h-3 w-3" />}
+                        중지
+                      </button>
+                      <button
+                        onClick={() => handleAction(service.name, "restart")}
+                        disabled={anyLoading}
+                        className="flex items-center gap-1 rounded-[var(--radius-sm)] border border-[var(--color-border)] px-2 py-1 text-xs font-medium text-[var(--color-card-foreground)] transition-colors hover:bg-[var(--color-muted)] disabled:opacity-50"
+                      >
+                        {isRestartLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <RotateCcw className="h-3 w-3" />}
+                        재시작
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      onClick={() => handleAction(service.name, "start")}
+                      disabled={anyLoading}
+                      className="flex items-center gap-1 rounded-[var(--radius-sm)] border border-emerald-500/20 px-2 py-1 text-xs font-medium text-emerald-400 transition-colors hover:bg-emerald-500/10 disabled:opacity-50"
+                    >
+                      {isStartLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Play className="h-3 w-3" />}
+                      시작
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
 
-  return (
-    <button
-      onClick={onClick}
-      disabled={loading}
-      title={label}
-      className={`flex items-center gap-1 rounded-[var(--radius-sm)] border px-2 py-1 text-xs transition-colors disabled:opacity-50 ${colorMap[variant]}`}
-    >
-      {loading ? <Loader2 className="h-3 w-3 animate-spin" /> : icon}
-      <span className="hidden sm:inline">{label}</span>
-    </button>
+      {/* 하단: 표시 개수 */}
+      {filteredServices.length > 0 && (
+        <p className="text-center text-xs text-[var(--color-muted-foreground)]">
+          {filteredServices.length}개 서비스 표시 (전체 {stats.total}개)
+        </p>
+      )}
+    </div>
   );
 }

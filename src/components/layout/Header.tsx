@@ -1,35 +1,39 @@
 import { useLocation } from "react-router-dom";
 import { Moon, Sun } from "lucide-react";
 import { useThemeStore } from "@/store/themeStore";
+import { useT } from "@/i18n/useT";
 
-const pageTitles: Record<string, string> = {
-  "/": "대시보드",
-  "/services": "서비스 관리",
-  "/task-scheduler": "작업 스케줄러 관리",
-  "/programs": "프로그램 삭제",
-  "/deep-uninstaller": "찌꺼기 완전삭제 언인스톨러",
-  "/privacy": "개인정보 삭제",
-  "/dns-check": "DNS 변조 체크",
-  "/context-menu": "우클릭 메뉴 관리자",
-  "/force-delete": "파일 강제삭제",
-  "/disk-visualizer": "디스크 공간 시각화",
-  "/duplicate-finder": "중복 파일 헌터",
-  "/disk-health": "하드디스크 상태점검",
-  "/cpu-gpu-temp": "CPU/GPU 온도",
-  "/bsod-analyzer": "블루스크린 분석",
-  "/shutdown-timer": "종료 타이머",
-  "/software-updater": "소프트웨어 일괄 업데이트",
-  "/settings": "설정",
+const pageTitleKeys: Record<string, string> = {
+  "/": "nav.dashboard",
+  "/services": "nav.services",
+  "/task-scheduler": "nav.taskScheduler",
+  "/programs": "nav.programs",
+  "/startup-manager": "nav.startupManager",
+  "/temp-cleaner": "nav.tempCleaner",
+  "/force-delete": "nav.forceDelete",
+  "/duplicate-finder": "nav.duplicateFinder",
+  "/bsod-analyzer": "nav.bsodAnalyzer",
+  "/software-updater": "header.softwareUpdater",
+  "/registry-cleaner": "nav.registryCleaner",
+  "/debloat": "header.debloat",
+  "/network": "nav.network",
+  "/disk": "nav.disk",
+  "/win-control": "nav.winControl",
+  "/ai-optimizer": "nav.aiOptimizer",
+  "/process-booster": "nav.processBooster",
+  "/settings": "nav.settings",
 };
 
 export default function Header() {
   const location = useLocation();
   const { isDark, toggle } = useThemeStore();
-  const title = pageTitles[location.pathname] || "피씨바른";
+  const t = useT();
+  const titleKey = pageTitleKeys[location.pathname];
+  const title = titleKey ? t(titleKey) : t("app.name");
 
   return (
     <header className="h-14 border-b border-[var(--color-border)] bg-[var(--color-background)] flex items-center justify-between px-6 shrink-0">
-      <h1 className="text-lg font-semibold text-[var(--color-foreground)]">
+      <h1 className="truncate text-lg font-semibold text-[var(--color-foreground)]">
         {title}
       </h1>
       <button

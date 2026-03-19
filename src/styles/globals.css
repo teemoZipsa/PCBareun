@@ -34,32 +34,6 @@
   --radius-lg: 0.75rem;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --color-background: #0a0a0a;
-    --color-foreground: #fafafa;
-    --color-muted: #262626;
-    --color-muted-foreground: #a3a3a3;
-    --color-border: #2e2e2e;
-    --color-card: #171717;
-    --color-card-foreground: #fafafa;
-    --color-primary: #3b82f6;
-    --color-primary-foreground: #ffffff;
-    --color-secondary: #262626;
-    --color-secondary-foreground: #fafafa;
-    --color-accent: #262626;
-    --color-accent-foreground: #fafafa;
-    --color-destructive: #dc2626;
-    --color-destructive-foreground: #fafafa;
-    --color-success: #16a34a;
-    --color-warning: #d97706;
-    --color-ring: #3b82f6;
-    --color-sidebar-bg: #0f0f0f;
-    --color-sidebar-foreground: #d4d4d4;
-    --color-sidebar-active: #3b82f6;
-  }
-}
-
 .dark {
   --color-background: #0a0a0a;
   --color-foreground: #fafafa;
@@ -110,4 +84,55 @@ body {
 
 ::-webkit-scrollbar-thumb:hover {
   background: var(--color-foreground);
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 150ms ease-out;
+}
+
+/* ── Global Checkbox Styles ── */
+input[type="checkbox"] {
+  accent-color: var(--color-primary);
+}
+
+input[type="checkbox"].cb-check {
+  position: relative;
+  appearance: none;
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  border: 1.5px solid var(--color-border);
+  border-radius: 3px;
+  background: var(--color-background);
+  cursor: pointer;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+
+input[type="checkbox"].cb-check:checked {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+input[type="checkbox"].cb-check:checked::after {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 1px;
+  width: 4px;
+  height: 8px;
+  border: solid white;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
 }

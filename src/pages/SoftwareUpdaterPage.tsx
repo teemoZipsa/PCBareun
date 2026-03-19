@@ -12,6 +12,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import Card from "@/components/common/Card";
+import { useScanCacheStore } from "@/store/scanCacheStore";
 
 /* ── Types ─────────────────────────────────────── */
 
@@ -23,15 +24,25 @@ interface SoftwareInfo {
   uninstall_string: string;
 }
 
+interface WingetUpgrade {
+  name: string;
+  id: string;
+  current_version: string;
+  available_version: string;
+  source: string;
+}
+
 type Phase = "idle" | "loading" | "loaded";
 
 /* ── Component ──────────────────────────────────── */
 
 export default function SoftwareUpdaterPage() {
-  const [phase, setPhase] = useState<Phase>("idle");
-  const [software, setSoftware] = useState<SoftwareInfo[]>([]);
-  const [wingetAvailable, setWingetAvailable] = useState(false);
-  const [wingetOutput, setWingetOutput] = useState("");
+  const { softwareCache, setSoftwareCache } = useScanCacheStore();
+
+  const [phase, setPhase] = useState<Phase>(softwareCache ? "loaded" : "idle");
+  const [software, setSoftware] = useState<SoftwareInfo[]>(softwareCache?.software ?? []);
+  const [wingetAvailable, setWingetAvailable] = useState(softwareCache?.wingetAvailable ?? false);
+  const [wingetUpgrades, setWingetUpgrades] = useState<WingetUpgrade[]>(softwareCache?.wingetUpgrades ?? []);
   const [search, setSearch] = useState("");
   const [error, setError] = useState("");
   const [updating, setUpdating] = useState<Record<string, "pending" | "success" | "error">>({});
@@ -48,31 +59,33 @@ export default function SoftwareUpdaterPage() {
       setSoftware(sw);
       setWingetAvailable(winget);
 
+      let upgrades: WingetUpgrade[] = [];
       if (winget) {
         try {
-          const output = await invoke<string>("winget_list_upgrades");
-          setWingetOutput(output);
+          upgrades = await invoke<WingetUpgrade[]>("winget_list_upgrades");
+          setWingetUpgrades(upgrades);
         } catch {
-          setWingetOutput("");
+          setWingetUpgrades([]);
         }
       }
+      setSoftwareCache(sw, winget, upgrades);
       setPhase("loaded");
     } catch (e: any) {
       setError(String(e));
       setPhase("idle");
     }
-  }, []);
+  }, [setSoftwareCache]);
 
-  const upgrade = async (name: string) => {
-    setUpdating((p) => ({ ...p, [name]: "pending" }));
-    setUpdateMsg((p) => ({ ...p, [name]: "" }));
+  const upgrade = async (id: string) => {
+    setUpdating((p) => ({ ...p, [id]: "pending" }));
+    setUpdateMsg((p) => ({ ...p, [id]: "" }));
     try {
-      const msg = await invoke<string>("winget_upgrade", { packageName: name });
-      setUpdating((p) => ({ ...p, [name]: "success" }));
-      setUpdateMsg((p) => ({ ...p, [name]: msg }));
+      const msg = await invoke<string>("winget_upgrade", { packageId: id });
+      setUpdating((p) => ({ ...p, [id]: "success" }));
+      setUpdateMsg((p) => ({ ...p, [id]: msg }));
     } catch (e: any) {
-      setUpdating((p) => ({ ...p, [name]: "error" }));
-      setUpdateMsg((p) => ({ ...p, [name]: String(e) }));
+      setUpdating((p) => ({ ...p, [id]: "error" }));
+      setUpdateMsg((p) => ({ ...p, [id]: String(e) }));
     }
   };
 
@@ -122,10 +135,7 @@ export default function SoftwareUpdaterPage() {
       {phase === "loaded" && (
         <>
           {/* winget status */}
-          <Card
-            title="winget 상태"
-            icon={<Download className="h-4 w-4" />}
-          >
+          <Card title="winget 상태" icon={<Download className="h-4 w-4" />}>
             <div className="flex items-center gap-2 py-1">
               {wingetAvailable ? (
                 <>
@@ -143,15 +153,84 @@ export default function SoftwareUpdaterPage() {
             </div>
           </Card>
 
-          {/* winget upgrades output */}
-          {wingetAvailable && wingetOutput && (
+          {/* winget upgrades — parsed table */}
+          {wingetAvailable && wingetUpgrades.length > 0 && (
             <Card
-              title="업데이트 가능 목록 (winget)"
+              title={`업데이트 가능 (${wingetUpgrades.length}개)`}
               icon={<ArrowUpCircle className="h-4 w-4" />}
             >
-              <pre className="max-h-48 overflow-auto whitespace-pre-wrap rounded-[var(--radius-sm)] bg-[var(--color-background)] p-3 font-mono text-xs text-[var(--color-muted-foreground)]">
-                {wingetOutput}
-              </pre>
+              <div className="max-h-[320px] overflow-y-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-[var(--color-border)] text-left text-xs text-[var(--color-muted-foreground)]">
+                      <th className="pb-2 pr-4 font-medium">이름</th>
+                      <th className="pb-2 pr-4 font-medium">ID</th>
+                      <th className="pb-2 pr-4 font-medium">현재 버전</th>
+                      <th className="pb-2 pr-4 font-medium">최신 버전</th>
+                      <th className="pb-2 font-medium">업데이트</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {wingetUpgrades.map((pkg) => (
+                      <tr
+                        key={pkg.id}
+                        className="border-b border-[var(--color-border)]/50 last:border-0"
+                      >
+                        <td className="py-2 pr-4 font-medium text-[var(--color-card-foreground)]">
+                          {pkg.name}
+                        </td>
+                        <td className="py-2 pr-4 font-mono text-xs text-[var(--color-muted-foreground)]">
+                          {pkg.id}
+                        </td>
+                        <td className="py-2 pr-4 font-mono text-xs text-[var(--color-muted-foreground)]">
+                          {pkg.current_version}
+                        </td>
+                        <td className="py-2 pr-4 font-mono text-xs text-emerald-500">
+                          {pkg.available_version}
+                        </td>
+                        <td className="py-2">
+                          {updating[pkg.id] === "pending" ? (
+                            <Loader2 className="h-4 w-4 animate-spin text-[var(--color-primary)]" />
+                          ) : updating[pkg.id] === "success" ? (
+                            <div className="flex items-center gap-1">
+                              <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                              <span className="text-xs text-emerald-500">완료</span>
+                            </div>
+                          ) : updating[pkg.id] === "error" ? (
+                            <div className="group relative">
+                              <div className="flex items-center gap-1">
+                                <AlertTriangle className="h-4 w-4 text-amber-500" />
+                                <span className="text-xs text-amber-500">실패</span>
+                              </div>
+                              {updateMsg[pkg.id] && (
+                                <div className="absolute bottom-full left-0 z-10 mb-1 hidden w-64 rounded-[var(--radius-sm)] bg-[var(--color-background)] p-2 text-xs text-[var(--color-muted-foreground)] shadow-lg group-hover:block">
+                                  {updateMsg[pkg.id]}
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => upgrade(pkg.id)}
+                              className="flex items-center gap-1 rounded-[var(--radius-sm)] bg-[var(--color-primary)]/10 px-2.5 py-1 text-xs font-medium text-[var(--color-primary)] transition-colors hover:bg-[var(--color-primary)]/20"
+                            >
+                              <ArrowUpCircle className="h-3 w-3" />
+                              업데이트
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+          )}
+
+          {wingetAvailable && wingetUpgrades.length === 0 && (
+            <Card icon={<CheckCircle2 className="h-4 w-4" />} title="업데이트">
+              <p className="py-2 text-sm text-emerald-500">
+                모든 프로그램이 최신 버전입니다.
+              </p>
             </Card>
           )}
 
@@ -180,7 +259,6 @@ export default function SoftwareUpdaterPage() {
                     <th className="pb-2 pr-4 font-medium">버전</th>
                     <th className="pb-2 pr-4 font-medium">게시자</th>
                     <th className="pb-2 pr-4 font-medium">설치일</th>
-                    {wingetAvailable && <th className="pb-2 font-medium">업데이트</th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -203,38 +281,6 @@ export default function SoftwareUpdaterPage() {
                           ? `${sw.install_date.slice(0, 4)}-${sw.install_date.slice(4, 6)}-${sw.install_date.slice(6, 8)}`
                           : "-"}
                       </td>
-                      {wingetAvailable && (
-                        <td className="py-2">
-                          {updating[sw.name] === "pending" ? (
-                            <Loader2 className="h-4 w-4 animate-spin text-[var(--color-primary)]" />
-                          ) : updating[sw.name] === "success" ? (
-                            <div className="flex items-center gap-1">
-                              <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                              <span className="text-xs text-emerald-500">완료</span>
-                            </div>
-                          ) : updating[sw.name] === "error" ? (
-                            <div className="group relative">
-                              <div className="flex items-center gap-1">
-                                <AlertTriangle className="h-4 w-4 text-amber-500" />
-                                <span className="text-xs text-amber-500">실패</span>
-                              </div>
-                              {updateMsg[sw.name] && (
-                                <div className="absolute bottom-full left-0 z-10 mb-1 hidden w-64 rounded-[var(--radius-sm)] bg-[var(--color-background)] p-2 text-xs text-[var(--color-muted-foreground)] shadow-lg group-hover:block">
-                                  {updateMsg[sw.name]}
-                                </div>
-                              )}
-                            </div>
-                          ) : (
-                            <button
-                              onClick={() => upgrade(sw.name)}
-                              className="flex items-center gap-1 rounded-[var(--radius-sm)] bg-[var(--color-primary)]/10 px-2.5 py-1 text-xs font-medium text-[var(--color-primary)] transition-colors hover:bg-[var(--color-primary)]/20"
-                            >
-                              <ArrowUpCircle className="h-3 w-3" />
-                              업데이트
-                            </button>
-                          )}
-                        </td>
-                      )}
                     </tr>
                   ))}
                 </tbody>

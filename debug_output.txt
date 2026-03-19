@@ -1,0 +1,18 @@
+=== FOUND ===
+PSPath: Microsoft.PowerShell.Core\Registry::HKEY_LOCAL_MACHINE\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\GoClean
+RegName: HKEY_LOCAL_MACHINE\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\GoClean
+DisplayName: 怨좏겢由?
+Publisher: Irongate
+InstallLocation: []
+UninstallString: ["C:\Program Files (x86)\GoClean\uninstall.exe"]
+DisplayIcon: ["C:\Program Files (x86)\GoClean\GoClean.EXE"]
+
+=== FOUND ===
+PSPath: Microsoft.PowerShell.Core\Registry::HKEY_LOCAL_MACHINE\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\{EA77EC9A-C82F-4F80-8B7D-D32C09A9C25F}
+RegName: HKEY_LOCAL_MACHINE\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\{EA77EC9A-C82F-4F80-8B7D-D32C09A9C25F}
+DisplayName: ?ㅼ씠?몄삩
+Publisher: NATE Communications Corporation
+InstallLocation: [C:\Program Files (x86)\SK Communications\NATEON]
+UninstallString: [C:\Program Files (x86)\SK Communications\NATEON\Bin\uninstall.exe]
+DisplayIcon: [C:\Program Files (x86)\SK Communications\NATEON\Bin\NateOnMain.exe]
+

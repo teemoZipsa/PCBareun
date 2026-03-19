@@ -25,3 +25,7 @@ tokio = { version = "1", features = ["full"] }
 sysinfo = "0.35"
 blake3 = "1.8.3"
 tauri-plugin-updater = "2"
+tauri-plugin-dialog = "2.6.0"
+chrono = "0.4"
+dirs = "5"
+jwalk = "0.8"

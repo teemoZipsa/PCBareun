@@ -1,5 +1,5 @@
 use serde::{Serialize, Deserialize};
-use std::process::Command;
+use crate::utils::cmd::powershell_no_window;
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct DnsAdapter {
@@ -59,8 +59,8 @@ Get-DnsClientServerAddress -AddressFamily IPv4 |
     }
   } | ConvertTo-Json -Compress
 "#;
-    let output = Command::new("powershell")
-        .args(["-NoProfile", "-Command", ps])
+    let output = powershell_no_window()
+        .args(["-Command", ps])
         .output()
         .map_err(|e| format!("PowerShell 실행 실패: {}", e))?;
 
@@ -115,8 +115,8 @@ pub fn reset_dns_to_auto(interface_index: u32) -> Result<String, String> {
         interface_index
     );
 
-    let output = Command::new("powershell")
-        .args(["-NoProfile", "-Command", &ps])
+    let output = powershell_no_window()
+        .args(["-Command", &ps])
         .output()
         .map_err(|e| format!("실행 실패: {}", e))?;
 

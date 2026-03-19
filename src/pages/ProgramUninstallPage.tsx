@@ -8,9 +8,21 @@ import {
   AlertCircle,
   CheckCircle2,
   RotateCcw,
-  ArrowUpDown,
+  FolderOpen,
+  Database,
+  ChevronDown,
+  ChevronRight,
+  AlertTriangle,
+  ArrowDownAZ,
+  ArrowDownZA,
+  HardDrive,
+  Calendar,
+  ExternalLink,
 } from "lucide-react";
-import Card from "@/components/common/Card";
+import SafetyBanner from "@/components/common/SafetyBanner";
+import SkeletonRows from "@/components/common/SkeletonRows";
+
+/* ── Types ─────────────────────────────────────── */
 
 interface InstalledProgram {
   name: string;
@@ -22,8 +34,41 @@ interface InstalledProgram {
   registry_key: string;
 }
 
+interface LeftoverItem {
+  path: string;
+  kind: string;
+  size_bytes: number;
+}
+
+interface ScanResult {
+  files: LeftoverItem[];
+  registry_keys: LeftoverItem[];
+  total_size_bytes: number;
+}
+
 type SortKey = "name" | "publisher" | "size_mb" | "install_date";
 type SortDir = "asc" | "desc";
+
+function formatBytes(bytes: number): string {
+  if (bytes === 0) return "0 B";
+  const k = 1024;
+  const sizes = ["B", "KB", "MB", "GB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
+}
+
+function formatDate(raw: string): string {
+  if (!raw || raw.length !== 8) return "";
+  return `${raw.slice(0, 4)}.${raw.slice(4, 6)}.${raw.slice(6, 8)}`;
+}
+
+function formatSize(mb: number): string {
+  if (mb <= 0) return "";
+  if (mb >= 1024) return `${(mb / 1024).toFixed(1)} GB`;
+  return `${mb.toFixed(1)} MB`;
+}
+
+/* ── Component ──────────────────────────────────── */
 
 export default function ProgramUninstallPage() {
   const [programs, setPrograms] = useState<InstalledProgram[]>([]);
@@ -36,13 +81,21 @@ export default function ProgramUninstallPage() {
     type: "success" | "error";
     text: string;
   } | null>(null);
-  const [uninstalling, setUninstalling] = useState<string | null>(null);
+
+  // Leftover scanning state
+  const [scanningKey, setScanningKey] = useState<string | null>(null);
+  const [expandedKey, setExpandedKey] = useState<string | null>(null);
+  const [scanResult, setScanResult] = useState<ScanResult | null>(null);
+  const [checkedFiles, setCheckedFiles] = useState<Set<string>>(new Set());
+  const [checkedReg, setCheckedReg] = useState<Set<string>>(new Set());
+  const [showFiles, setShowFiles] = useState(true);
+  const [showReg, setShowReg] = useState(true);
+  const [cleaning, setCleaning] = useState(false);
 
   const fetchPrograms = useCallback(async () => {
     try {
       setError(null);
-      const result =
-        await invoke<InstalledProgram[]>("get_installed_programs");
+      const result = await invoke<InstalledProgram[]>("get_installed_programs");
       setPrograms(result);
     } catch (err) {
       setError(String(err));
@@ -101,50 +154,102 @@ export default function ProgramUninstallPage() {
     [programs]
   );
 
-  const handleUninstall = async (program: InstalledProgram) => {
-    if (!program.uninstall_string) {
-      setActionMessage({
-        type: "error",
-        text: `'${program.name}'의 제거 명령어를 찾을 수 없습니다.`,
-      });
+  const handleScanLeftovers = async (program: InstalledProgram) => {
+    if (expandedKey === program.registry_key) {
+      setExpandedKey(null);
+      setScanResult(null);
       return;
     }
-
-    setUninstalling(program.registry_key);
-    setActionMessage(null);
-
+    setScanningKey(program.registry_key);
+    setExpandedKey(program.registry_key);
+    setScanResult(null);
+    setCheckedFiles(new Set());
+    setCheckedReg(new Set());
     try {
-      const result = await invoke<string>("uninstall_program", {
-        uninstallString: program.uninstall_string,
+      const result = await invoke<ScanResult>("scan_leftovers", {
+        programName: program.name,
+        publisher: program.publisher,
+        registryKey: program.registry_key,
       });
-      setActionMessage({ type: "success", text: `${program.name}: ${result}` });
+      setScanResult(result);
+      setCheckedFiles(new Set(result.files.map((f) => f.path)));
+      setCheckedReg(new Set(result.registry_keys.map((r) => r.path)));
+      setShowFiles(true);
+      setShowReg(true);
     } catch (err) {
       setActionMessage({ type: "error", text: String(err) });
+      setExpandedKey(null);
     } finally {
-      setUninstalling(null);
+      setScanningKey(null);
     }
   };
 
-  function formatDate(raw: string): string {
-    if (!raw || raw.length !== 8) return raw || "-";
-    return `${raw.slice(0, 4)}-${raw.slice(4, 6)}-${raw.slice(6, 8)}`;
-  }
+  const handleDeleteLeftovers = async () => {
+    if (checkedFiles.size === 0 && checkedReg.size === 0) return;
+    setCleaning(true);
+    try {
+      const msg = await invoke<string>("delete_leftovers", {
+        filePaths: Array.from(checkedFiles),
+        registryPaths: Array.from(checkedReg),
+      });
+      setActionMessage({ type: "success", text: msg });
 
-  function formatSize(mb: number): string {
-    if (mb <= 0) return "-";
-    if (mb >= 1024) return `${(mb / 1024).toFixed(1)} GB`;
-    return `${mb.toFixed(1)} MB`;
-  }
+      // Remove deleted items from scan result immediately
+      setScanResult((prev) => {
+        if (!prev) return prev;
+        const newFiles = prev.files.filter((f) => !checkedFiles.has(f.path));
+        const newReg = prev.registry_keys.filter((r) => !checkedReg.has(r.path));
+
+        // If nothing left, close the panel
+        if (newFiles.length === 0 && newReg.length === 0) {
+          setExpandedKey(null);
+          return null;
+        }
+
+        return {
+          files: newFiles,
+          registry_keys: newReg,
+          total_size_bytes: newFiles.reduce((sum, f) => sum + f.size_bytes, 0),
+        };
+      });
+      setCheckedFiles(new Set());
+      setCheckedReg(new Set());
+    } catch (err) {
+      setActionMessage({ type: "error", text: String(err) });
+    } finally {
+      setCleaning(false);
+    }
+  };
+
+  const toggleFile = (path: string) => {
+    setCheckedFiles((prev) => {
+      const next = new Set(prev);
+      if (next.has(path)) next.delete(path);
+      else next.add(path);
+      return next;
+    });
+  };
+
+  const toggleReg = (path: string) => {
+    setCheckedReg((prev) => {
+      const next = new Set(prev);
+      if (next.has(path)) next.delete(path);
+      else next.add(path);
+      return next;
+    });
+  };
+
+  const SortIcon = sortDir === "asc" ? ArrowDownAZ : ArrowDownZA;
+
+  const sortOptions: { key: SortKey; label: string }[] = [
+    { key: "name", label: "이름순" },
+    { key: "publisher", label: "게시자순" },
+    { key: "size_mb", label: "용량순" },
+    { key: "install_date", label: "설치일순" },
+  ];
 
   if (loading) {
-    return (
-      <div className="flex h-64 items-center justify-center">
-        <div className="flex items-center gap-3 text-[var(--color-muted-foreground)]">
-          <Loader2 className="h-5 w-5 animate-spin" />
-          <span>설치된 프로그램을 검색하는 중...</span>
-        </div>
-      </div>
-    );
+    return <SkeletonRows rows={10} cols={4} />;
   }
 
   if (error) {
@@ -154,10 +259,7 @@ export default function ProgramUninstallPage() {
           <AlertCircle className="h-8 w-8" />
           <p className="text-sm">{error}</p>
           <button
-            onClick={() => {
-              setLoading(true);
-              fetchPrograms();
-            }}
+            onClick={() => { setLoading(true); fetchPrograms(); }}
             className="rounded-[var(--radius-md)] bg-[var(--color-primary)] px-4 py-1.5 text-sm text-white hover:opacity-90"
           >
             다시 시도
@@ -169,24 +271,68 @@ export default function ProgramUninstallPage() {
 
   return (
     <div className="space-y-4">
-      {/* 통계 */}
-      <div className="grid grid-cols-2 gap-3">
-        <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card)] px-4 py-3">
-          <p className="text-xs text-[var(--color-muted-foreground)]">
-            설치된 프로그램
-          </p>
-          <p className="mt-1 text-2xl font-bold text-[var(--color-card-foreground)]">
-            {programs.length}
-          </p>
+      <SafetyBanner message="설치된 프로그램의 설치 경로와 관련 파일을 확인합니다. 프로그램 제거는 Windows 설정에서 진행하세요." />
+
+      {/* 제어판 바로가기 */}
+      <button
+        onClick={() => invoke("open_appwiz_cpl").catch(() => {})}
+        className="flex items-center gap-2 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card)] px-4 py-2.5 text-sm text-[var(--color-card-foreground)] transition-colors hover:bg-[var(--color-muted)]/50 hover:border-[var(--color-primary)]/30 w-full"
+      >
+        <ExternalLink className="h-4 w-4 text-[var(--color-primary)]" />
+        <span className="font-medium">Windows 프로그램 제거</span>
+        <span className="text-xs text-[var(--color-muted-foreground)]">제어판 &gt; 프로그램 추가/제거</span>
+      </button>
+
+      {/* ── 통계 + 검색 + 정렬 통합 바 ── */}
+      <div className="flex flex-wrap items-center gap-3">
+        {/* 통계 칩들 */}
+        <div className="flex items-center gap-1.5 rounded-full border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-1.5 text-xs">
+          <Package className="h-3.5 w-3.5 text-[var(--color-primary)]" />
+          <span className="font-bold text-[var(--color-card-foreground)]">{programs.length}</span>
+          <span className="text-[var(--color-muted-foreground)]">프로그램</span>
         </div>
-        <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card)] px-4 py-3">
-          <p className="text-xs text-[var(--color-muted-foreground)]">
-            총 용량
-          </p>
-          <p className="mt-1 text-2xl font-bold text-[var(--color-card-foreground)]">
-            {formatSize(totalSizeMB)}
-          </p>
+        <div className="flex items-center gap-1.5 rounded-full border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-1.5 text-xs">
+          <HardDrive className="h-3.5 w-3.5 text-[var(--color-primary)]" />
+          <span className="font-bold text-[var(--color-card-foreground)]">{formatSize(totalSizeMB) || "0 MB"}</span>
         </div>
+
+        {/* 검색 */}
+        <div className="relative flex-1 min-w-[200px]">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-muted-foreground)]" />
+          <input
+            type="text"
+            placeholder="프로그램 이름 또는 게시자 검색..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full rounded-full border border-[var(--color-border)] bg-[var(--color-card)] py-1.5 pl-9 pr-3 text-sm text-[var(--color-foreground)] placeholder:text-[var(--color-muted-foreground)] focus:border-[var(--color-primary)] focus:outline-none"
+          />
+        </div>
+
+        {/* 정렬 버튼들 */}
+        <div className="flex items-center gap-1 rounded-full border border-[var(--color-border)] bg-[var(--color-card)] p-0.5">
+          {sortOptions.map((opt) => (
+            <button
+              key={opt.key}
+              onClick={() => handleSort(opt.key)}
+              className={`flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium transition-all ${
+                sortKey === opt.key
+                  ? "bg-[var(--color-primary)] text-white"
+                  : "text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)]"
+              }`}
+            >
+              {opt.label}
+              {sortKey === opt.key && <SortIcon className="h-3 w-3" />}
+            </button>
+          ))}
+        </div>
+
+        {/* 새로고침 */}
+        <button
+          onClick={() => { setLoading(true); fetchPrograms(); }}
+          className="rounded-full border border-[var(--color-border)] bg-[var(--color-card)] p-1.5 text-[var(--color-muted-foreground)] transition-colors hover:bg-[var(--color-muted)] hover:text-[var(--color-foreground)]"
+        >
+          <RotateCcw className="h-3.5 w-3.5" />
+        </button>
       </div>
 
       {/* 알림 */}
@@ -204,178 +350,203 @@ export default function ProgramUninstallPage() {
             <AlertCircle className="h-4 w-4 shrink-0" />
           )}
           <span>{actionMessage.text}</span>
-          <button
-            onClick={() => setActionMessage(null)}
-            className="ml-auto text-xs opacity-60 hover:opacity-100"
-          >
-            닫기
-          </button>
+          <button onClick={() => setActionMessage(null)} className="ml-auto text-xs opacity-60 hover:opacity-100">닫기</button>
         </div>
       )}
 
-      {/* 검색 + 새로고침 */}
-      <Card>
-        <div className="flex items-center gap-3">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-muted-foreground)]" />
-            <input
-              type="text"
-              placeholder="프로그램 이름 또는 게시자 검색..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-background)] py-2 pl-9 pr-3 text-sm text-[var(--color-foreground)] placeholder:text-[var(--color-muted-foreground)] focus:border-[var(--color-primary)] focus:outline-none"
-            />
-          </div>
-          <button
-            onClick={() => {
-              setLoading(true);
-              fetchPrograms();
-            }}
-            className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-2 text-xs font-medium text-[var(--color-card-foreground)] transition-colors hover:bg-[var(--color-muted)]"
-          >
-            <RotateCcw className="h-3.5 w-3.5" />
-          </button>
-        </div>
-      </Card>
+      {/* ── 프로그램 카드 리스트 ── */}
+      <div className="space-y-1.5">
+        {filteredPrograms.length === 0 ? (
+          <p className="py-12 text-center text-sm text-[var(--color-muted-foreground)]">
+            검색 결과가 없습니다.
+          </p>
+        ) : (
+          filteredPrograms.map((program) => {
+            const isExpanded = expandedKey === program.registry_key;
+            const isScanning = scanningKey === program.registry_key;
+            const sizeStr = formatSize(program.size_mb);
+            const dateStr = formatDate(program.install_date);
 
-      {/* 프로그램 테이블 */}
-      <Card
-        title={`프로그램 목록 (${filteredPrograms.length})`}
-        icon={<Package className="h-4 w-4" />}
-      >
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-[var(--color-border)] text-left text-xs font-medium text-[var(--color-muted-foreground)]">
-                <SortHeader
-                  label="프로그램"
-                  sortKey="name"
-                  currentKey={sortKey}
-                  dir={sortDir}
-                  onClick={handleSort}
-                />
-                <SortHeader
-                  label="게시자"
-                  sortKey="publisher"
-                  currentKey={sortKey}
-                  dir={sortDir}
-                  onClick={handleSort}
-                  className="hidden md:table-cell"
-                />
-                <th className="hidden pb-3 pr-3 lg:table-cell">버전</th>
-                <SortHeader
-                  label="설치일"
-                  sortKey="install_date"
-                  currentKey={sortKey}
-                  dir={sortDir}
-                  onClick={handleSort}
-                  className="hidden lg:table-cell"
-                />
-                <SortHeader
-                  label="크기"
-                  sortKey="size_mb"
-                  currentKey={sortKey}
-                  dir={sortDir}
-                  onClick={handleSort}
-                />
-                <th className="pb-3 text-right">작업</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[var(--color-border)]">
-              {filteredPrograms.map((program) => (
-                <tr
-                  key={program.registry_key}
-                  className="transition-colors hover:bg-[var(--color-muted)]/30"
+            return (
+              <div key={program.registry_key} className="group">
+                {/* 기본 프로그램 행 */}
+                <div
+                  className={`flex items-center gap-3 rounded-[var(--radius-md)] border px-4 py-3 transition-all ${
+                    isExpanded
+                      ? "border-[var(--color-primary)]/30 bg-[var(--color-primary)]/5"
+                      : "border-transparent hover:border-[var(--color-border)] hover:bg-[var(--color-muted)]/20"
+                  }`}
                 >
-                  <td className="py-3 pr-3">
-                    <p className="font-medium text-[var(--color-card-foreground)]">
+                  {/* 좌측: 이름 + 게시자 */}
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-[var(--color-card-foreground)]">
                       {program.name}
                     </p>
-                    <p className="mt-0.5 text-xs text-[var(--color-muted-foreground)] md:hidden">
-                      {program.publisher || "-"}
-                    </p>
-                  </td>
-                  <td className="hidden py-3 pr-3 text-[var(--color-card-foreground)] md:table-cell">
-                    {program.publisher || "-"}
-                  </td>
-                  <td className="hidden py-3 pr-3 text-xs text-[var(--color-muted-foreground)] lg:table-cell">
-                    {program.version || "-"}
-                  </td>
-                  <td className="hidden py-3 pr-3 text-xs text-[var(--color-muted-foreground)] lg:table-cell">
-                    {formatDate(program.install_date)}
-                  </td>
-                  <td className="py-3 pr-3 text-xs text-[var(--color-muted-foreground)]">
-                    {formatSize(program.size_mb)}
-                  </td>
-                  <td className="py-3 text-right">
-                    <button
-                      onClick={() => handleUninstall(program)}
-                      disabled={
-                        uninstalling === program.registry_key ||
-                        !program.uninstall_string
-                      }
-                      title={
-                        program.uninstall_string
-                          ? "프로그램 제거"
-                          : "제거 명령어 없음"
-                      }
-                      className="inline-flex items-center gap-1 rounded-[var(--radius-sm)] border border-red-500/30 px-2 py-1 text-xs text-red-400 transition-colors hover:bg-red-500/10 disabled:opacity-40"
-                    >
-                      {uninstalling === program.registry_key ? (
-                        <Loader2 className="h-3 w-3 animate-spin" />
-                      ) : (
-                        <Trash2 className="h-3 w-3" />
-                      )}
-                      <span className="hidden sm:inline">제거</span>
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {filteredPrograms.length === 0 && (
-            <p className="py-8 text-center text-sm text-[var(--color-muted-foreground)]">
-              검색 결과가 없습니다.
-            </p>
-          )}
-        </div>
-      </Card>
-    </div>
-  );
-}
+                    {program.publisher && (
+                      <p className="mt-0.5 truncate text-xs text-[var(--color-muted-foreground)]">
+                        {program.publisher}
+                        {program.version && ` · v${program.version}`}
+                      </p>
+                    )}
+                  </div>
 
-function SortHeader({
-  label,
-  sortKey,
-  currentKey,
-  dir,
-  onClick,
-  className = "",
-}: {
-  label: string;
-  sortKey: SortKey;
-  currentKey: SortKey;
-  dir: SortDir;
-  onClick: (key: SortKey) => void;
-  className?: string;
-}) {
-  const isActive = sortKey === currentKey;
-  return (
-    <th className={`pb-3 pr-3 ${className}`}>
-      <button
-        onClick={() => onClick(sortKey)}
-        className="flex items-center gap-1 hover:text-[var(--color-foreground)]"
-      >
-        {label}
-        <ArrowUpDown
-          className={`h-3 w-3 ${isActive ? "text-[var(--color-primary)]" : "opacity-40"}`}
-        />
-        {isActive && (
-          <span className="text-[10px] text-[var(--color-primary)]">
-            {dir === "asc" ? "▲" : "▼"}
-          </span>
+                  {/* 메타: 설치일 + 크기 */}
+                  <div className="hidden shrink-0 items-center gap-4 sm:flex">
+                    {dateStr && (
+                      <span className="flex items-center gap-1 text-xs text-[var(--color-muted-foreground)]">
+                        <Calendar className="h-3 w-3" />
+                        {dateStr}
+                      </span>
+                    )}
+                    {sizeStr && (
+                      <span className="min-w-[56px] text-right text-xs font-semibold text-[var(--color-card-foreground)]">
+                        {sizeStr}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* 잔여 파일 검사 버튼 */}
+                  <button
+                    onClick={() => handleScanLeftovers(program)}
+                    disabled={isScanning}
+                    className={`shrink-0 flex items-center gap-1.5 rounded-[var(--radius-md)] px-3 py-1.5 text-xs font-medium transition-all ${
+                      isExpanded
+                        ? "bg-[var(--color-primary)] text-white"
+                        : "border border-[var(--color-border)] bg-[var(--color-card)] text-[var(--color-muted-foreground)] hover:border-[var(--color-primary)]/40 hover:text-[var(--color-primary)]"
+                    }`}
+                  >
+                    {isScanning ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <FolderOpen className="h-3.5 w-3.5" />
+                    )}
+                    {isExpanded ? "닫기" : "경로 보기"}
+                  </button>
+                </div>
+
+                {/* ── 잔여 검사 결과 패널 ── */}
+                {isExpanded && (
+                  <div className="ml-4 mr-4 mb-2 rounded-b-[var(--radius-md)] border border-t-0 border-[var(--color-primary)]/20 bg-[var(--color-muted)]/10 px-4 py-3">
+                    {isScanning ? (
+                      <div className="flex items-center justify-center gap-2 py-6">
+                        <Loader2 className="h-5 w-5 animate-spin text-[var(--color-primary)]" />
+                        <span className="text-sm text-[var(--color-muted-foreground)]">
+                          설치 경로를 검색 중...
+                        </span>
+                      </div>
+                    ) : scanResult ? (
+                      scanResult.files.length === 0 && scanResult.registry_keys.length === 0 ? (
+                        <div className="flex items-center gap-2 py-4 text-sm text-[var(--color-muted-foreground)]">
+                          <CheckCircle2 className="h-4 w-4 text-green-400" />
+                          관련 경로가 발견되지 않았습니다.
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          <div className="flex items-center gap-4 text-xs text-[var(--color-muted-foreground)]">
+                            <span>
+                              파일/폴더: <strong className="text-[var(--color-card-foreground)]">{scanResult.files.length}</strong>개
+                            </span>
+                            <span>
+                              레지스트리: <strong className="text-[var(--color-card-foreground)]">{scanResult.registry_keys.length}</strong>개
+                            </span>
+                            <span>
+                              총 크기: <strong className="text-[var(--color-card-foreground)]">{formatBytes(scanResult.total_size_bytes)}</strong>
+                            </span>
+                          </div>
+
+                          {/* Files */}
+                          {scanResult.files.length > 0 && (
+                            <div>
+                              <button
+                                onClick={() => setShowFiles(!showFiles)}
+                                className="flex items-center gap-1 text-xs font-medium text-[var(--color-card-foreground)]"
+                              >
+                                {showFiles ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+                                <FolderOpen className="h-3.5 w-3.5 text-[var(--color-primary)]" />
+                                파일/폴더 ({scanResult.files.length})
+                              </button>
+                              {showFiles && (
+                                <div className="mt-1 max-h-36 overflow-y-auto rounded-[var(--radius-sm)] bg-[var(--color-background)] p-2">
+                                  {scanResult.files.map((f) => (
+                                    <label key={f.path} className="flex items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-[var(--color-muted)]/30 cursor-pointer">
+                                      <input
+                                        type="checkbox"
+                                        checked={checkedFiles.has(f.path)}
+                                        onChange={() => toggleFile(f.path)}
+                                        className="cb-check"
+                                      />
+                                      <span className="min-w-0 flex-1 truncate font-mono text-[var(--color-muted-foreground)]">{f.path}</span>
+                                      <span className="shrink-0 text-[var(--color-muted-foreground)]">{formatBytes(f.size_bytes)}</span>
+                                    </label>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Registry */}
+                          {scanResult.registry_keys.length > 0 && (
+                            <div>
+                              <button
+                                onClick={() => setShowReg(!showReg)}
+                                className="flex items-center gap-1 text-xs font-medium text-[var(--color-card-foreground)]"
+                              >
+                                {showReg ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+                                <Database className="h-3.5 w-3.5 text-orange-400" />
+                                레지스트리 ({scanResult.registry_keys.length})
+                              </button>
+                              {showReg && (
+                                <div className="mt-1 max-h-36 overflow-y-auto rounded-[var(--radius-sm)] bg-[var(--color-background)] p-2">
+                                  {scanResult.registry_keys.map((r) => (
+                                    <label key={r.path} className="flex items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-[var(--color-muted)]/30 cursor-pointer">
+                                      <input
+                                        type="checkbox"
+                                        checked={checkedReg.has(r.path)}
+                                        onChange={() => toggleReg(r.path)}
+                                        className="cb-check"
+                                      />
+                                      <span className="min-w-0 flex-1 truncate font-mono text-[var(--color-muted-foreground)]">{r.path}</span>
+                                    </label>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Delete button */}
+                          {(checkedFiles.size > 0 || checkedReg.size > 0) && (
+                            <div className="flex items-center gap-3 pt-1">
+                              <button
+                                onClick={handleDeleteLeftovers}
+                                disabled={cleaning}
+                                className="flex items-center gap-2 rounded-[var(--radius-md)] bg-red-500 px-4 py-1.5 text-xs font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+                              >
+                                {cleaning ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                                선택 항목 삭제 ({checkedFiles.size + checkedReg.size}개)
+                              </button>
+                              <span className="flex items-center gap-1 text-xs text-amber-500">
+                                <AlertTriangle className="h-3 w-3" />
+                                삭제된 항목은 복구할 수 없습니다
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      )
+                    ) : null}
+                  </div>
+                )}
+              </div>
+            );
+          })
         )}
-      </button>
-    </th>
+      </div>
+
+      {/* 하단: 표시 개수 */}
+      {filteredPrograms.length > 0 && searchQuery && (
+        <p className="text-center text-xs text-[var(--color-muted-foreground)]">
+          {filteredPrograms.length}개 표시 / 전체 {programs.length}개
+        </p>
+      )}
+    </div>
   );
 }

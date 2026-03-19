@@ -2,6 +2,7 @@ use serde::Serialize;
 use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
+use crate::utils::cmd::powershell_no_window;
 
 #[derive(Serialize, Clone)]
 pub struct PrivacyItem {
@@ -33,6 +34,10 @@ enum TargetKind {
     Dir,
     File,
     Glob(String, String),
+    /// Registry key with values to delete (path, list of value names). Count = number of values found.
+    Registry(String, Vec<String>),
+    /// Shell command to run for cleaning. Scan always reports count=1 if applicable.
+    ShellCmd(String),
 }
 
 struct Target {
@@ -86,6 +91,98 @@ fn glob_stats(dir: &Path, pre: &str, suf: &str) -> (u64, u32) {
         }
     }
     (sz, cnt)
+}
+
+fn registry_stats(reg_path: &str, value_names: &[String]) -> (u64, u32) {
+    // Check how many of these registry values exist
+    let checks: Vec<String> = if value_names.is_empty() {
+        // Count all values under the key
+        vec![format!(
+            "try {{ (Get-Item 'Registry::{}' -EA Stop).Property.Count }} catch {{ 0 }}",
+            reg_path
+        )]
+    } else {
+        value_names
+            .iter()
+            .map(|v| {
+                format!(
+                    "try {{ if (Get-ItemProperty 'Registry::{}' -Name '{}' -EA Stop) {{ 1 }} else {{ 0 }} }} catch {{ 0 }}",
+                    reg_path, v
+                )
+            })
+            .collect()
+    };
+    let script = format!(
+        "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8\n$c = 0\n{}\nWrite-Output $c",
+        checks
+            .iter()
+            .map(|c| format!("$c += {}", c))
+            .collect::<Vec<_>>()
+            .join("\n")
+    );
+    let output = powershell_no_window()
+        .args(["-Command", &script])
+        .output();
+    match output {
+        Ok(o) => {
+            let cnt: u32 = String::from_utf8_lossy(&o.stdout)
+                .trim()
+                .parse()
+                .unwrap_or(0);
+            (0, cnt)
+        }
+        Err(_) => (0, 0),
+    }
+}
+
+fn clean_registry(reg_path: &str, value_names: &[String]) -> (u64, u32, u32) {
+    let script = if value_names.is_empty() {
+        format!(
+            "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8\ntry {{ Remove-Item 'Registry::{}' -Recurse -Force -EA Stop; Write-Output 'ok' }} catch {{ Write-Output 'fail' }}",
+            reg_path
+        )
+    } else {
+        let removes: Vec<String> = value_names
+            .iter()
+            .map(|v| {
+                format!(
+                    "try {{ Remove-ItemProperty 'Registry::{}' -Name '{}' -Force -EA Stop; $ok++ }} catch {{ $fail++ }}",
+                    reg_path, v
+                )
+            })
+            .collect();
+        format!(
+            "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8\n$ok=0; $fail=0\n{}\nWrite-Output \"$ok $fail\"",
+            removes.join("\n")
+        )
+    };
+    let output = powershell_no_window()
+        .args(["-Command", &script])
+        .output();
+    match output {
+        Ok(o) => {
+            let out = String::from_utf8_lossy(&o.stdout).trim().to_string();
+            if value_names.is_empty() {
+                if out == "ok" { (0, 1, 0) } else { (0, 0, 1) }
+            } else {
+                let parts: Vec<&str> = out.split_whitespace().collect();
+                let ok: u32 = parts.first().and_then(|s| s.parse().ok()).unwrap_or(0);
+                let fail: u32 = parts.get(1).and_then(|s| s.parse().ok()).unwrap_or(0);
+                (0, ok, fail)
+            }
+        }
+        Err(_) => (0, 0, 1),
+    }
+}
+
+fn shell_cmd_clean(cmd: &str) -> (u64, u32, u32) {
+    let output = powershell_no_window()
+        .args(["-Command", cmd])
+        .output();
+    match output {
+        Ok(o) if o.status.success() => (0, 1, 0),
+        _ => (0, 0, 1),
+    }
 }
 
 fn firefox_profile() -> Option<PathBuf> {
@@ -237,6 +334,100 @@ fn targets() -> Vec<Target> {
             .join("Explorer"),
         kind: TargetKind::Glob("thumbcache_".into(), ".db".into()),
     });
+    t.push(Target {
+        id: "win_update_cache".into(),
+        name: "Windows 업데이트 캐시".into(),
+        group: "Windows".into(),
+        path: PathBuf::from(r"C:\Windows\SoftwareDistribution\Download"),
+        kind: TargetKind::Dir,
+    });
+
+    // ── Windows 레지스트리 기반 개인정보 ───
+    t.push(Target {
+        id: "win_run_history".into(),
+        name: "실행(Win+R) 기록".into(),
+        group: "Windows 개인정보".into(),
+        path: PathBuf::new(),
+        kind: TargetKind::Registry(
+            r"HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\RunMRU".into(),
+            vec![],
+        ),
+    });
+    t.push(Target {
+        id: "win_explorer_typed_paths".into(),
+        name: "탐색기 주소 기록".into(),
+        group: "Windows 개인정보".into(),
+        path: PathBuf::new(),
+        kind: TargetKind::Registry(
+            r"HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\TypedPaths".into(),
+            vec![],
+        ),
+    });
+    t.push(Target {
+        id: "win_search_history".into(),
+        name: "Windows 검색 기록".into(),
+        group: "Windows 개인정보".into(),
+        path: Path::new(&la)
+            .join("Packages")
+            .join("Microsoft.Windows.Search_cw5n1h2txyewy")
+            .join("LocalState")
+            .join("AppIconCache"),
+        kind: TargetKind::Dir,
+    });
+    t.push(Target {
+        id: "win_clipboard".into(),
+        name: "클립보드 기록".into(),
+        group: "Windows 개인정보".into(),
+        path: PathBuf::new(),
+        kind: TargetKind::ShellCmd(
+            "Add-Type -A System.Windows.Forms; [System.Windows.Forms.Clipboard]::Clear()".into(),
+        ),
+    });
+    t.push(Target {
+        id: "win_dns_cache".into(),
+        name: "DNS 캐시".into(),
+        group: "Windows 개인정보".into(),
+        path: PathBuf::new(),
+        kind: TargetKind::ShellCmd("Clear-DnsClientCache".into()),
+    });
+
+    // ── 브라우저 다운로드 기록 ───
+    t.push(Target {
+        id: "chrome_download_history".into(),
+        name: "다운로드 기록".into(),
+        group: "Google Chrome".into(),
+        path: Path::new(&la)
+            .join("Google")
+            .join("Chrome")
+            .join("User Data")
+            .join("Default")
+            .join("DownloadMetadata"),
+        kind: TargetKind::Dir,
+    });
+    t.push(Target {
+        id: "edge_download_history".into(),
+        name: "다운로드 기록".into(),
+        group: "Microsoft Edge".into(),
+        path: Path::new(&la)
+            .join("Microsoft")
+            .join("Edge")
+            .join("User Data")
+            .join("Default")
+            .join("DownloadMetadata"),
+        kind: TargetKind::Dir,
+    });
+
+    // ── 그림판 최근 파일 ───
+    t.push(Target {
+        id: "win_paint_recent".into(),
+        name: "그림판 최근 파일".into(),
+        group: "Windows 개인정보".into(),
+        path: PathBuf::new(),
+        kind: TargetKind::Registry(
+            r"HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Applets\Paint\Recent File List".into(),
+            vec![],
+        ),
+    });
 
     t
 }
@@ -252,6 +443,8 @@ pub fn scan_privacy_items() -> Result<Vec<PrivacyItem>, String> {
                 TargetKind::Dir => dir_stats(&t.path),
                 TargetKind::File => file_stats(&t.path),
                 TargetKind::Glob(p, s) => glob_stats(&t.path, p, s),
+                TargetKind::Registry(reg, vals) => registry_stats(reg, vals),
+                TargetKind::ShellCmd(_) => (0, 1), // always show as 1 item
             };
             if cnt > 0 {
                 Some(PrivacyItem {
@@ -281,6 +474,8 @@ pub fn clean_privacy_items(item_ids: Vec<String>) -> Result<CleanSummary, String
             TargetKind::Dir => clean_dir(&t.path),
             TargetKind::File => clean_file(&t.path),
             TargetKind::Glob(p, s) => clean_glob(&t.path, p, s),
+            TargetKind::Registry(reg, vals) => clean_registry(reg, vals),
+            TargetKind::ShellCmd(cmd) => shell_cmd_clean(cmd),
         };
         tb += cb;
         tf += cf;

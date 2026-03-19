@@ -27,30 +27,112 @@ pub struct DuplicateScanResult {
     pub total_files_scanned: u32,
 }
 
+// Maximum files to collect before aborting (prevents freezing on huge dirs)
+const MAX_FILES: usize = 500_000;
+
+// Directories to skip at drive root level
+const ROOT_SKIP_DIRS: &[&str] = &[
+    "$Recycle.Bin",
+    "System Volume Information",
+    "Windows",
+    "Program Files",
+    "Program Files (x86)",
+    "ProgramData",
+    "Recovery",
+    "$WinREAgent",
+    "PerfLogs",
+];
+
+// Directories to always skip
+const ALWAYS_SKIP_DIRS: &[&str] = &[
+    "$Recycle.Bin",
+    "System Volume Information",
+    ".git",
+    "node_modules",
+    "__pycache__",
+    ".cache",
+    "Cache",
+    "CacheStorage",
+    "Code Cache",
+    "GPUCache",
+    "ShaderCache",
+    "DawnCache",
+    "ScriptCache",
+];
+
+// File extensions to skip (caches, databases, logs, temp files)
+const SKIP_EXTENSIONS: &[&str] = &[
+    "log", "tmp", "bak", "cache",
+    "db", "db-shm", "db-wal",
+    "sqlite", "sqlite-shm", "sqlite-wal",
+    "prmdc2", "prmdc2-shm", "prmdc2-wal",
+    "lock", "lck",
+];
+
+// File name patterns to skip
+const SKIP_FILE_NAMES: &[&str] = &[
+    "thumbs.db", "desktop.ini", ".ds_store",
+    "metadatacache", "iconcache",
+];
+
 // ── Scanning helpers ────────────────────────────────────────
 
-fn collect_files(dir: &Path, min_size: u64, files: &mut Vec<PathBuf>) {
+fn is_drive_root(dir: &Path) -> bool {
+    // e.g. C:\ or D:\
+    let s = dir.to_string_lossy();
+    s.len() <= 3 && s.ends_with('\\')
+        || dir.parent().is_none()
+        || dir.parent().map(|p| p == Path::new("")).unwrap_or(false)
+}
+
+fn collect_files(dir: &Path, min_size: u64, files: &mut Vec<PathBuf>, at_root: bool) -> bool {
+    if files.len() >= MAX_FILES {
+        return false; // signal to stop
+    }
+
     if let Ok(entries) = fs::read_dir(dir) {
         for entry in entries.flatten() {
+            if files.len() >= MAX_FILES {
+                return false;
+            }
+
             let p = entry.path();
             if p.is_dir() {
-                // Skip system directories
                 let name = p.file_name().unwrap_or_default().to_string_lossy();
-                if name.starts_with('.')
-                    || name == "$Recycle.Bin"
-                    || name == "System Volume Information"
-                    || name == "Windows"
-                {
+                // Skip hidden dirs
+                if name.starts_with('.') {
                     continue;
                 }
-                collect_files(&p, min_size, files);
+                // Skip system dirs
+                if ALWAYS_SKIP_DIRS.iter().any(|&s| name.eq_ignore_ascii_case(s)) {
+                    continue;
+                }
+                // At drive root, skip additional system directories
+                if at_root && ROOT_SKIP_DIRS.iter().any(|&s| name.eq_ignore_ascii_case(s)) {
+                    continue;
+                }
+                if !collect_files(&p, min_size, files, false) {
+                    return false;
+                }
             } else if let Ok(meta) = p.metadata() {
                 if meta.len() >= min_size {
+                    // Skip cache/config files by extension
+                    let file_name = p.file_name().unwrap_or_default().to_string_lossy().to_lowercase();
+                    let ext = p.extension().unwrap_or_default().to_string_lossy().to_lowercase();
+
+                    if SKIP_EXTENSIONS.iter().any(|&e| ext == e) {
+                        continue;
+                    }
+                    if SKIP_FILE_NAMES.iter().any(|&n| file_name.starts_with(n)) {
+                        continue;
+                    }
+
                     files.push(p);
                 }
             }
         }
     }
+    true
 }
 
 fn hash_file(path: &Path) -> Option<String> {
@@ -72,54 +154,48 @@ fn hash_file(path: &Path) -> Option<String> {
 fn format_modified(path: &Path) -> String {
     if let Ok(meta) = path.metadata() {
         if let Ok(modified) = meta.modified() {
-            if let Ok(duration) = modified.duration_since(std::time::UNIX_EPOCH) {
-                let secs = duration.as_secs() as i64;
-                // Simple formatting: seconds since epoch to date string
-                let days = secs / 86400;
-                let years = 1970 + (days * 400 / 146097);
-                // Simplified: just return the timestamp
-                let _ = years;
-            }
+            let dt: chrono::DateTime<chrono::Local> = modified.into();
+            return dt.format("%Y-%m-%d %H:%M").to_string();
         }
     }
-
-    // Use PowerShell for exact formatting (only called per-duplicate, not per-file)
-    if let Ok(out) = std::process::Command::new("powershell")
-        .args([
-            "-NoProfile",
-            "-NonInteractive",
-            "-Command",
-            &format!(
-                "(Get-Item -LiteralPath '{}' -ErrorAction SilentlyContinue).LastWriteTime.ToString('yyyy-MM-dd HH:mm')",
-                path.to_string_lossy().replace('\'', "''")
-            ),
-        ])
-        .output()
-    {
-        let s = String::from_utf8_lossy(&out.stdout).trim().to_string();
-        if !s.is_empty() {
-            return s;
-        }
-    }
-
     "-".into()
 }
 
 // ── Tauri commands ──────────────────────────────────────────
 
 #[tauri::command]
-pub fn scan_duplicates(
+pub async fn scan_duplicates(
     path: String,
     min_size_kb: u64,
 ) -> Result<DuplicateScanResult, String> {
-    let root = Path::new(&path);
+    tokio::task::spawn_blocking(move || {
+        scan_duplicates_inner(&path, min_size_kb)
+    })
+    .await
+    .map_err(|e| format!("작업 실행 실패: {}", e))?
+}
+
+fn scan_duplicates_inner(
+    path: &str,
+    min_size_kb: u64,
+) -> Result<DuplicateScanResult, String> {
+    let root = Path::new(path);
     if !root.is_dir() {
         return Err("폴더 경로를 입력해주세요.".into());
     }
 
     let min_bytes = min_size_kb * 1024;
+    let at_root = is_drive_root(root);
     let mut all_files: Vec<PathBuf> = Vec::new();
-    collect_files(root, min_bytes, &mut all_files);
+    let completed = collect_files(root, min_bytes, &mut all_files, at_root);
+
+    if !completed {
+        return Err(format!(
+            "파일이 {}개를 초과하여 스캔을 중단했습니다. 특정 폴더를 선택해주세요.",
+            MAX_FILES
+        ));
+    }
+
     let total_scanned = all_files.len() as u32;
 
     // Phase 1: group by size
@@ -218,4 +294,43 @@ pub struct DeleteResult {
     pub deleted: u32,
     pub failed: u32,
     pub freed_bytes: u64,
+}
+
+#[derive(Serialize)]
+pub struct UserFolder {
+    pub name: String,
+    pub path: String,
+}
+
+#[tauri::command]
+pub fn get_user_folders() -> Vec<UserFolder> {
+    let mut folders = Vec::new();
+    if let Some(profile) = std::env::var_os("USERPROFILE") {
+        let base = Path::new(&profile);
+        for (name, dir) in [
+            ("다운로드", "Downloads"),
+            ("문서", "Documents"),
+            ("바탕화면", "Desktop"),
+            ("사진", "Pictures"),
+            ("동영상", "Videos"),
+        ] {
+            let p = base.join(dir);
+            if p.is_dir() {
+                folders.push(UserFolder {
+                    name: name.to_string(),
+                    path: p.to_string_lossy().to_string(),
+                });
+            }
+        }
+    }
+    folders
+}
+
+#[tauri::command]
+pub fn open_folder_in_explorer(path: String) -> Result<(), String> {
+    crate::utils::cmd::command_no_window("explorer")
+        .arg(&path)
+        .spawn()
+        .map_err(|e| format!("폴더 열기 실패: {}", e))?;
+    Ok(())
 }

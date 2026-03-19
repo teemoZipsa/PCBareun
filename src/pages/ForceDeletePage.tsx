@@ -1,6 +1,8 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { Trash2, AlertTriangle, FileWarning, Search, Key, ShieldAlert } from "lucide-react";
+import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
+import { Trash2, AlertTriangle, FileWarning, Search, Key, ShieldAlert, Upload, FolderOpen } from "lucide-react";
+import { open } from "@tauri-apps/plugin-dialog";
 import Card from "@/components/common/Card";
 
 /* ── Types ─────────────────────────────────────── */
@@ -28,6 +30,8 @@ export default function ForceDeletePage() {
   const [loading, setLoading] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [result, setResult] = useState<ForceDeleteResult | null>(null);
+  const [dragging, setDragging] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
 
   const handleCheck = useCallback(async (p: string) => {
     if (!p) return;
@@ -44,12 +48,30 @@ export default function ForceDeletePage() {
     }
   }, []);
 
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    getCurrentWebviewWindow()
+      .onDragDropEvent((event) => {
+        if (event.payload.type === "over") {
+          setDragging(true);
+        } else if (event.payload.type === "drop") {
+          setDragging(false);
+          const paths = event.payload.paths;
+          if (paths.length > 0) {
+            setPath(paths[0]);
+            handleCheck(paths[0]);
+          }
+        } else {
+          setDragging(false);
+        }
+      })
+      .then((fn) => { unlisten = fn; });
+    return () => { unlisten?.(); };
+  }, [handleCheck]);
+
   const handleDelete = async () => {
     if (!status || !status.exists) return;
-    if (!confirm(`이 동작은 되돌릴 수 없습니다.\n정말 "${status.path}"을(를) 강제 삭제하시겠습니까?`)) {
-      return;
-    }
-
+    setShowConfirm(false);
     setDeleting(true);
     setResult(null);
     try {
@@ -70,6 +92,15 @@ export default function ForceDeletePage() {
     }
   };
 
+  const handleBrowse = async () => {
+    const selected = await open({ multiple: false, directory: false });
+    if (selected) {
+      const p = typeof selected === "string" ? selected : selected;
+      setPath(p);
+      handleCheck(p);
+    }
+  };
+
   const formatSize = (bytes: number) => {
     if (bytes === 0) return "0 B";
     const k = 1024;
@@ -87,24 +118,45 @@ export default function ForceDeletePage() {
       </div>
 
       <Card title="경로 입력" icon={<Search className="h-4 w-4" />}>
-        <div className="flex gap-2 py-2">
-          <input
-            type="text"
-            className="flex-1 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2 text-sm focus:border-[var(--color-primary)] focus:outline-none"
-            placeholder="C:\Users\Example\locked_file.txt (경로를 입력하거나 붙여넣으세요)"
-            value={path}
-            onChange={(e) => setPath(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") handleCheck(path);
-            }}
-          />
-          <button
-            onClick={() => handleCheck(path)}
-            disabled={loading || !path}
-            className="rounded-[var(--radius-md)] bg-[var(--color-primary)] px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+        <div className="space-y-3 py-2">
+          <div className="flex gap-2">
+            <input
+              type="text"
+              className="flex-1 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2 text-sm focus:border-[var(--color-primary)] focus:outline-none"
+              placeholder="C:\Users\Example\locked_file.txt (경로를 입력하거나 붙여넣으세요)"
+              value={path}
+              onChange={(e) => setPath(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleCheck(path);
+              }}
+            />
+            <button
+              onClick={handleBrowse}
+              title="파일 선택"
+              className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-2 text-sm text-[var(--color-muted-foreground)] transition-colors hover:bg-[var(--color-muted)]"
+            >
+              <FolderOpen className="h-4 w-4" />
+            </button>
+            <button
+              onClick={() => handleCheck(path)}
+              disabled={loading || !path}
+              className="rounded-[var(--radius-md)] bg-[var(--color-primary)] px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {loading ? "확인 중..." : "상태 확인"}
+            </button>
+          </div>
+          <div
+            className={`flex flex-col items-center justify-center gap-2 rounded-[var(--radius-md)] border-2 border-dashed py-6 transition-colors ${
+              dragging
+                ? "border-[var(--color-primary)] bg-[var(--color-primary)]/5"
+                : "border-[var(--color-border)] bg-[var(--color-muted)]/20"
+            }`}
           >
-            {loading ? "확인 중..." : "상태 확인"}
-          </button>
+            <Upload className={`h-6 w-6 ${dragging ? "text-[var(--color-primary)]" : "text-[var(--color-muted-foreground)]"}`} />
+            <p className={`text-xs ${dragging ? "text-[var(--color-primary)] font-medium" : "text-[var(--color-muted-foreground)]"}`}>
+              {dragging ? "여기에 놓으세요" : "파일 또는 폴더를 여기에 드래그 앤 드롭하세요"}
+            </p>
+          </div>
         </div>
       </Card>
 
@@ -161,7 +213,7 @@ export default function ForceDeletePage() {
                 </div>
                 <div className="mt-4 flex justify-end">
                   <button
-                    onClick={handleDelete}
+                    onClick={() => setShowConfirm(true)}
                     disabled={deleting}
                     className="flex items-center gap-2 rounded-[var(--radius-md)] bg-red-500 px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
                   >
@@ -173,6 +225,45 @@ export default function ForceDeletePage() {
             </div>
           )}
         </Card>
+      )}
+
+      {/* ── 확인 다이얼로그 (인앱) ── */}
+      {showConfirm && status && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="mx-4 w-full max-w-md rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-card)] p-6 shadow-2xl">
+            <div className="flex flex-col items-center gap-4">
+              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-red-500/15">
+                <AlertTriangle className="h-7 w-7 text-red-500" />
+              </div>
+              <div className="text-center">
+                <h3 className="text-lg font-bold text-[var(--color-card-foreground)]">
+                  정말 삭제하시겠습니까?
+                </h3>
+                <p className="mt-2 text-sm text-[var(--color-muted-foreground)]">
+                  이 동작은 되돌릴 수 없습니다.
+                </p>
+                <p className="mt-1 rounded-[var(--radius-sm)] bg-[var(--color-muted)]/50 px-3 py-2 font-mono text-xs text-[var(--color-card-foreground)] break-all">
+                  {status.path}
+                </p>
+              </div>
+            </div>
+            <div className="mt-6 flex items-center justify-center gap-3">
+              <button
+                onClick={() => setShowConfirm(false)}
+                className="rounded-[var(--radius-md)] border border-[var(--color-border)] px-6 py-2 text-sm font-medium text-[var(--color-card-foreground)] transition-colors hover:bg-[var(--color-muted)]"
+              >
+                취소
+              </button>
+              <button
+                onClick={handleDelete}
+                className="flex items-center gap-2 rounded-[var(--radius-md)] bg-red-500 px-6 py-2 text-sm font-medium text-white transition-all hover:bg-red-600"
+              >
+                <Trash2 className="h-4 w-4" />
+                삭제 확인
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* 실행 결과 */}

@@ -10,6 +10,7 @@ import {
   RefreshCw,
   Clock,
   Thermometer,
+  ShieldAlert,
 } from "lucide-react";
 import Card from "@/components/common/Card";
 
@@ -26,6 +27,7 @@ interface DiskHealthInfo {
   read_errors: number | null;
   write_errors: number | null;
   wear_level: number | null;
+  needs_admin: boolean;
 }
 
 /* ── Helpers ───────────────────────────────────── */
@@ -156,6 +158,31 @@ export default function DiskHealthPage() {
         </button>
       </div>
 
+      {/* 관리자 권한 안내 */}
+      {disks.some((d) => d.needs_admin) && (
+        <div className="flex items-start gap-3 rounded-[var(--radius-md)] border border-amber-500/30 bg-amber-500/10 px-4 py-3">
+          <ShieldAlert className="mt-0.5 h-5 w-5 shrink-0 text-amber-500" />
+          <div>
+            <p className="text-sm font-medium text-amber-500">
+              SMART 데이터를 읽으려면 관리자 권한이 필요합니다
+            </p>
+            <p className="mt-0.5 text-xs text-amber-500/80">
+              온도, 사용 시간, 오류 정보를 확인하려면 앱을 관리자 권한으로 다시 실행하세요.
+            </p>
+            <button
+              onClick={async () => {
+                try {
+                  await invoke("restart_as_admin");
+                } catch {}
+              }}
+              className="mt-2 rounded-[var(--radius-sm)] bg-amber-500 px-3 py-1 text-xs font-medium text-white transition-opacity hover:opacity-90"
+            >
+              관리자 권한으로 재시작
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* 통계 카드 */}
       <div className="grid grid-cols-3 gap-3">
         <StatCard label="총 디스크" value={`${disks.length}개`} />
@@ -240,7 +267,7 @@ export default function DiskHealthPage() {
             {disk.media_type === "SSD" && disk.wear_level !== null && (
               <div className="mt-3">
                 <div className="flex items-center justify-between text-xs">
-                  <span className="text-[var(--color-muted-foreground)]">
+                  <span className="whitespace-nowrap text-[var(--color-muted-foreground)]">
                     SSD 마모도
                   </span>
                   <span className="font-medium text-[var(--color-card-foreground)]">

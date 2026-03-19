@@ -1,5 +1,5 @@
 use serde::Serialize;
-use std::process::Command;
+use crate::utils::cmd::powershell_no_window;
 
 #[derive(Serialize, serde::Deserialize, Clone)]
 pub struct WindowsService {
@@ -12,9 +12,8 @@ pub struct WindowsService {
 
 #[tauri::command]
 pub fn get_services() -> Result<Vec<WindowsService>, String> {
-    let output = Command::new("powershell")
+    let output = powershell_no_window()
         .args([
-            "-NoProfile",
             "-Command",
             r#"[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 $wmiMap = @{}
@@ -73,8 +72,8 @@ pub fn control_service(payload: ServiceAction) -> Result<String, String> {
         _ => return Err(format!("Unknown action: {}", payload.action)),
     };
 
-    let output = Command::new("powershell")
-        .args(["-NoProfile", "-Command", &ps_cmd])
+    let output = powershell_no_window()
+        .args(["-Command", &ps_cmd])
         .output()
         .map_err(|e| format!("Failed to execute: {}", e))?;
 
@@ -93,8 +92,8 @@ pub fn set_service_start_type(name: String, start_type: String) -> Result<String
         name, start_type
     );
 
-    let output = Command::new("powershell")
-        .args(["-NoProfile", "-Command", &ps_cmd])
+    let output = powershell_no_window()
+        .args(["-Command", &ps_cmd])
         .output()
         .map_err(|e| format!("Failed to execute: {}", e))?;
 

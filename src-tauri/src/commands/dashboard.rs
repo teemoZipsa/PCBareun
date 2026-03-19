@@ -23,6 +23,8 @@ pub struct SystemOverview {
     pub hostname: String,
     pub cpu_name: String,
     pub cpu_cores: usize,
+    pub gpu_name: String,
+    pub total_ram_gb: String,
     pub disks: Vec<DiskInfo>,
     pub uptime_seconds: u64,
 }
@@ -59,6 +61,33 @@ pub fn get_system_overview() -> SystemOverview {
         })
         .collect();
 
+    // GPU name — NVIDIA 외장 우선 → AMD 전용(RX) 우선 → 나머지
+    let gpu_name = match crate::utils::cmd::powershell_no_window()
+        .args(["-Command", r#"
+$gpus = Get-CimInstance Win32_VideoController | Select-Object -ExpandProperty Name
+# 1순위: NVIDIA 외장 (GeForce, RTX, GTX, Quadro)
+$nvidia = $gpus | Where-Object { $_ -match 'NVIDIA|GeForce|RTX|GTX|Quadro' } | Select-Object -First 1
+if ($nvidia) { $nvidia; exit }
+# 2순위: AMD 전용 GPU (RX 시리즈 등, '(TM) Graphics' 내장 제외)
+$amdDedicated = $gpus | Where-Object { $_ -match 'RX\s?\d|Radeon\s+Pro|Radeon\s+VII' } | Select-Object -First 1
+if ($amdDedicated) { $amdDedicated; exit }
+# 3순위: 내장 제외한 나머지
+$other = $gpus | Where-Object { $_ -notmatch 'Radeon\(TM\)\s+Graphics|Microsoft Basic|Intel.*UHD|Intel.*HD\s+Graphics' } | Select-Object -First 1
+if ($other) { $other; exit }
+# 최후: 아무거나 첫번째
+if ($gpus) { $gpus | Select-Object -First 1 } else { '' }
+"#])
+        .output()
+    {
+        Ok(out) => {
+            let s = String::from_utf8_lossy(&out.stdout).trim().to_string();
+            if s.is_empty() { "알 수 없음".into() } else { s }
+        }
+        Err(_) => "알 수 없음".into(),
+    };
+
+    let total_ram_gb = format!("{:.1} GB", total_mem / gb);
+
     SystemOverview {
         cpu_usage: sys.global_cpu_usage(),
         total_memory_gb: total_mem / gb,
@@ -77,6 +106,8 @@ pub fn get_system_overview() -> SystemOverview {
             .map(|c| c.brand().to_string())
             .unwrap_or_default(),
         cpu_cores: sys.cpus().len(),
+        gpu_name,
+        total_ram_gb,
         disks: disk_list,
         uptime_seconds: System::uptime(),
     }

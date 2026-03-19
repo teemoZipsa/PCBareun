@@ -1,4 +1,4 @@
-use std::process::Command;
+use crate::utils::cmd::command_no_window;
 
 #[tauri::command]
 pub fn execute_shutdown(action: String) -> Result<String, String> {
@@ -10,7 +10,7 @@ pub fn execute_shutdown(action: String) -> Result<String, String> {
         _ => return Err(format!("알 수 없는 동작: {}", action)),
     };
 
-    Command::new("shutdown")
+    command_no_window("shutdown")
         .args(&args)
         .spawn()
         .map_err(|e| format!("명령 실행 실패: {}", e))?;

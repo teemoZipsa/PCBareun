@@ -54,20 +54,17 @@ export default function DiskVisualizerPage() {
   const [history, setHistory] = useState<string[]>([]);
   const [viewMode, setViewMode] = useState<"list" | "treemap">("list");
 
-  // 드라이브 목록 불러오기
+  // 드라이브 목록 불러오기 (자동 스캔 안 함 - 사용자가 드라이브 클릭 시 시작)
   const fetchDrives = useCallback(async () => {
     try {
       const res = await invoke<DriveInfo[]>("get_drives_list");
       setDrives(res);
-      if (res.length > 0 && !currentPath) {
-        handleScan(res[0].path);
-      }
     } catch (err) {
       console.error(err);
     } finally {
       setLoadingDrives(false);
     }
-  }, [currentPath]);
+  }, []);
 
   useEffect(() => {
     fetchDrives();
@@ -78,7 +75,7 @@ export default function DiskVisualizerPage() {
     setScanning(true);
     setScanError(null);
     try {
-      const res = await invoke<DirEntry>("scan_directory", { path, max_depth: 3 });
+      const res = await invoke<DirEntry>("scan_directory", { path, maxDepth: 3 });
       setScanData(res);
       setCurrentPath(path);
       if (!isBack && history[history.length - 1] !== path) {

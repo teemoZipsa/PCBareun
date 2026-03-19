@@ -1,5 +1,5 @@
 use serde::Serialize;
-use std::process::Command;
+use crate::utils::cmd::powershell_no_window;
 
 #[derive(Serialize, serde::Deserialize, Clone)]
 pub struct DiskHealthInfo {
@@ -13,19 +13,23 @@ pub struct DiskHealthInfo {
     pub read_errors: Option<u64>,
     pub write_errors: Option<u64>,
     pub wear_level: Option<u64>,
+    pub needs_admin: bool,
 }
 
 #[tauri::command]
 pub fn get_disk_health() -> Result<Vec<DiskHealthInfo>, String> {
     let script = r#"
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 $disks = Get-PhysicalDisk -ErrorAction Stop
 $result = @()
 foreach ($d in $disks) {
     $rel = $null
-    [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+    $needsAdmin = $false
     try {
         $rel = $d | Get-StorageReliabilityCounter -ErrorAction Stop
-    } catch {}
+    } catch {
+        $needsAdmin = $true
+    }
 
     $sizeGb = [math]::Round($d.Size / 1GB, 1)
     $mediaType = switch ($d.MediaType) {
@@ -40,7 +44,6 @@ foreach ($d in $disks) {
         2 { "Unhealthy" }
         default { $d.HealthStatus.ToString() }
     }
-    # HealthStatus may also be a string
     if ($d.HealthStatus -is [string]) { $health = $d.HealthStatus }
 
     $obj = [PSCustomObject]@{
@@ -54,6 +57,7 @@ foreach ($d in $disks) {
         read_errors = $null
         write_errors = $null
         wear_level = $null
+        needs_admin = $needsAdmin
     }
 
     if ($rel) {
@@ -69,8 +73,8 @@ foreach ($d in $disks) {
 $result | ConvertTo-Json -Compress
 "#;
 
-    let output = Command::new("powershell")
-        .args(["-NoProfile", "-NonInteractive", "-Command", script])
+    let output = powershell_no_window()
+        .args(["-Command", script])
         .output()
         .map_err(|e| format!("PowerShell 실행 실패: {}", e))?;
 
@@ -80,7 +84,6 @@ $result | ConvertTo-Json -Compress
         return Ok(Vec::new());
     }
 
-    // Handle single object vs array
     if let Ok(items) = serde_json::from_str::<Vec<DiskHealthInfo>>(&stdout) {
         Ok(items)
     } else if let Ok(item) = serde_json::from_str::<DiskHealthInfo>(&stdout) {

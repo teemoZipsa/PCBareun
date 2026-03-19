@@ -1,5 +1,5 @@
 use serde::Serialize;
-use std::process::Command;
+use crate::utils::cmd::powershell_no_window;
 
 #[derive(Serialize, serde::Deserialize, Clone)]
 pub struct ScheduledTask {
@@ -39,8 +39,8 @@ Get-ScheduledTask | Where-Object { $_.TaskPath -notlike '\Microsoft\*' } | ForEa
 } | ConvertTo-Json -Compress
 "#;
 
-    let output = Command::new("powershell")
-        .args(["-NoProfile", "-Command", ps])
+    let output = powershell_no_window()
+        .args(["-Command", ps])
         .output()
         .map_err(|e| format!("PowerShell 실행 실패: {}", e))?;
 
@@ -76,8 +76,8 @@ pub fn set_task_enabled(task_name: String, task_path: String, enabled: bool) -> 
         verb, task_name, task_path
     );
 
-    let output = Command::new("powershell")
-        .args(["-NoProfile", "-Command", &ps_cmd])
+    let output = powershell_no_window()
+        .args(["-Command", &ps_cmd])
         .output()
         .map_err(|e| format!("실행 실패: {}", e))?;
 
@@ -97,8 +97,8 @@ pub fn run_task_now(task_name: String, task_path: String) -> Result<String, Stri
         task_name, task_path
     );
 
-    let output = Command::new("powershell")
-        .args(["-NoProfile", "-Command", &ps_cmd])
+    let output = powershell_no_window()
+        .args(["-Command", &ps_cmd])
         .output()
         .map_err(|e| format!("실행 실패: {}", e))?;
 

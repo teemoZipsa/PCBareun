@@ -1,7 +1,7 @@
 use serde::Serialize;
 use std::fs;
 use std::path::Path;
-use std::process::Command;
+use crate::utils::cmd::powershell_no_window;
 
 #[derive(Serialize)]
 pub struct ForceDeleteResult {
@@ -58,8 +58,8 @@ try {{
         path_str.replace('\'', "''")
     );
 
-    match Command::new("powershell")
-        .args(["-NoProfile", "-NonInteractive", "-Command", &ps_script])
+    match powershell_no_window()
+        .args(["-Command", &ps_script])
         .output()
     {
         Ok(out) => {
@@ -122,8 +122,8 @@ try {{
         path_str.replace('\'', "''")
     );
 
-    if let Ok(out) = Command::new("powershell")
-        .args(["-NoProfile", "-NonInteractive", "-Command", &script])
+    if let Ok(out) = powershell_no_window()
+        .args(["-Command", &script])
         .output()
     {
         let stdout = String::from_utf8_lossy(&out.stdout).trim().to_string();

@@ -1,5 +1,5 @@
 use serde::Serialize;
-use std::process::Command;
+use crate::utils::cmd::powershell_no_window;
 
 #[derive(Serialize, serde::Deserialize, Clone)]
 pub struct InstalledProgram {
@@ -27,7 +27,7 @@ foreach ($path in $paths) {
         $_.DisplayName -and $_.DisplayName.Trim() -ne ''
     } | ForEach-Object {
         $sizeKB = if($_.EstimatedSize) { [math]::Round($_.EstimatedSize / 1024, 1) } else { 0 }
-        $regKey = $_.PSPath -replace '^.*\\\\', ''
+        $regKey = $_.PSPath -replace '^Microsoft\.PowerShell\.Core\\Registry::', ''
         $results += [PSCustomObject]@{
             name = $_.DisplayName
             publisher = if($_.Publisher) { $_.Publisher } else { '' }
@@ -42,8 +42,8 @@ foreach ($path in $paths) {
 $results | Sort-Object name -Unique | ConvertTo-Json -Compress
 "#;
 
-    let output = Command::new("powershell")
-        .args(["-NoProfile", "-Command", ps_script])
+    let output = powershell_no_window()
+        .args(["-Command", ps_script])
         .output()
         .map_err(|e| format!("Failed to execute PowerShell: {}", e))?;
 
@@ -77,24 +77,51 @@ pub fn uninstall_program(uninstall_string: String) -> Result<String, String> {
         return Err("제거 명령어가 없습니다.".to_string());
     }
 
-    // MsiExec 기반 제거
-    if uninstall_string.to_lowercase().contains("msiexec") {
-        let output = Command::new("cmd")
-            .args(["/C", &uninstall_string])
-            .output()
-            .map_err(|e| format!("제거 실행 실패: {}", e))?;
+    // Use PowerShell Start-Process to handle paths with quotes and spaces correctly
+    let ps_cmd = format!(
+        r#"
+$cmd = @'
+{}
+'@
+# Check if it looks like a simple executable path (possibly with quotes)
+if ($cmd -match '^\s*"?([^"]+\.exe)"?\s*(.*)$') {{
+    $exe = $Matches[1]
+    $args = $Matches[2]
+    if ($args) {{
+        Start-Process -FilePath $exe -ArgumentList $args -Wait:$false
+    }} else {{
+        Start-Process -FilePath $exe -Wait:$false
+    }}
+}} else {{
+    # MsiExec or complex commands - use cmd
+    Start-Process cmd -ArgumentList '/C', $cmd -Wait:$false
+}}
+"#,
+        uninstall_string
+    );
 
-        if !output.status.success() {
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            return Err(format!("프로그램 제거 실패: {}", stderr));
-        }
-    } else {
-        // 일반 uninstaller 실행
-        Command::new("cmd")
-            .args(["/C", &uninstall_string])
-            .spawn()
-            .map_err(|e| format!("제거 실행 실패: {}", e))?;
-    }
+    powershell_no_window()
+        .args(["-Command", &ps_cmd])
+        .spawn()
+        .map_err(|e| format!("제거 실행 실패: {}", e))?;
 
     Ok("프로그램 제거가 시작되었습니다.".to_string())
+}
+
+#[tauri::command]
+pub fn open_appwiz_cpl() -> Result<String, String> {
+    std::process::Command::new("control")
+        .arg("appwiz.cpl")
+        .spawn()
+        .map_err(|e| format!("제어판 열기 실패: {}", e))?;
+    Ok("ok".to_string())
+}
+
+#[tauri::command]
+pub fn open_url(url: String) -> Result<String, String> {
+    crate::utils::cmd::command_no_window("cmd")
+        .args(["/C", "start", "", &url])
+        .spawn()
+        .map_err(|e| format!("URL 열기 실패: {}", e))?;
+    Ok("ok".to_string())
 }

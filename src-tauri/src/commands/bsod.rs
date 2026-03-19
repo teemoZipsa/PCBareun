@@ -1,7 +1,7 @@
 use serde::Serialize;
 use std::fs;
 use std::path::Path;
-use std::process::Command;
+use crate::utils::cmd::powershell_no_window;
 
 #[derive(Serialize, serde::Deserialize, Clone)]
 pub struct BsodEvent {
@@ -97,8 +97,8 @@ try {
 }
 "#;
 
-    let output = Command::new("powershell")
-        .args(["-NoProfile", "-NonInteractive", "-Command", script])
+    let output = powershell_no_window()
+        .args(["-Command", script])
         .output();
 
     match output {

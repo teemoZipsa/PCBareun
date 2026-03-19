@@ -1,6 +1,6 @@
 use serde::{Serialize, Deserialize};
 use std::path::PathBuf;
-use std::process::Command;
+use crate::utils::cmd::powershell_no_window;
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct LeftoverItem {
@@ -17,8 +17,44 @@ pub struct ScanResult {
 }
 
 #[tauri::command]
-pub fn scan_leftovers(program_name: String, publisher: String) -> Result<ScanResult, String> {
+pub fn scan_leftovers(program_name: String, publisher: String, registry_key: String) -> Result<ScanResult, String> {
     let mut files: Vec<LeftoverItem> = Vec::new();
+
+    // 0. Try to find the actual install path from the registry
+    //    Priority: InstallLocation > InstallSource > parent dir of UninstallString
+    let install_loc_ps = format!(
+        r#"[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$key = Get-ItemProperty -Path 'Registry::{}' -ErrorAction SilentlyContinue
+if ($key.InstallLocation -and $key.InstallLocation.Trim()) {{
+    $key.InstallLocation.TrimEnd('\')
+}} elseif ($key.InstallSource -and $key.InstallSource.Trim()) {{
+    $key.InstallSource.TrimEnd('\')
+}} elseif ($key.UninstallString) {{
+    $us = $key.UninstallString -replace '"',''
+    $us = $us -replace '\s+/.*$',''
+    $us = $us -replace '\s+-.*$',''
+    if (Test-Path $us) {{ Split-Path $us -Parent }}
+}} elseif ($key.DisplayIcon) {{
+    $di = $key.DisplayIcon -replace ',\d+$','' -replace '"',''
+    if (Test-Path $di) {{ Split-Path $di -Parent }}
+}}"#,
+        registry_key.replace("'", "''")
+    );
+    if let Ok(output) = powershell_no_window().args(["-Command", &install_loc_ps]).output() {
+        let loc = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        if !loc.is_empty() {
+            let p = PathBuf::from(&loc);
+            if p.exists() {
+                let size = dir_size(&p);
+                let kind = if p.is_dir() { "dir" } else { "file" };
+                files.push(LeftoverItem {
+                    path: p.to_string_lossy().to_string(),
+                    kind: kind.to_string(),
+                    size_bytes: size,
+                });
+            }
+        }
+    }
 
     // Build search terms from program name and publisher
     let search_terms: Vec<String> = build_search_terms(&program_name, &publisher);
@@ -53,6 +89,10 @@ pub fn scan_leftovers(program_name: String, publisher: String) -> Result<ScanRes
                 let name = entry.file_name().to_string_lossy().to_lowercase();
                 if search_terms.iter().any(|t| name.contains(t)) {
                     let path = entry.path();
+                    // Skip if already added (from InstallLocation)
+                    if files.iter().any(|f| f.path == path.to_string_lossy().as_ref()) {
+                        continue;
+                    }
                     let size = dir_size(&path);
                     let kind = if path.is_dir() { "dir" } else { "file" };
                     files.push(LeftoverItem {
@@ -102,12 +142,19 @@ pub fn delete_leftovers(
 
     // Delete registry keys
     for reg_path in &registry_paths {
+        // Convert full registry paths to PowerShell registry provider paths
+        let ps_path = reg_path
+            .replace("HKEY_CURRENT_USER", "HKCU:")
+            .replace("HKEY_LOCAL_MACHINE", "HKLM:")
+            .replace("HKEY_CLASSES_ROOT", "HKCR:")
+            .replace("HKEY_USERS", "HKU:")
+            .replace('\'', "''");
         let ps = format!(
             "Remove-Item -Path '{}' -Recurse -Force -ErrorAction Stop",
-            reg_path.replace('\'', "''")
+            ps_path
         );
-        let output = Command::new("powershell")
-            .args(["-NoProfile", "-Command", &ps])
+        let output = powershell_no_window()
+            .args(["-Command", &ps])
             .output();
 
         match output {
@@ -241,8 +288,8 @@ $results | ConvertTo-Json -Compress
             .join(",")
     );
 
-    let output = Command::new("powershell")
-        .args(["-NoProfile", "-Command", &ps])
+    let output = powershell_no_window()
+        .args(["-Command", &ps])
         .output();
 
     match output {
