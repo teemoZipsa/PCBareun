@@ -61,7 +61,7 @@ const presets: { id: PresetMode; label: string; desc: string; icon: React.Elemen
   },
   {
     id: "ai",
-    label: "AI 학습 모드",
+    label: "AI 모드",
     desc: "브라우저, 메신저, 게임, 미디어 전부 종료",
     icon: BrainCircuit,
     killCategories: ["browser", "messenger", "gaming", "media", "other"],

@@ -26,13 +26,17 @@ if ($val) { 'true' } else { 'false' }
 #[tauri::command]
 pub fn set_autostart(enable: bool) -> Result<String, String> {
     let ps = if enable {
-        // Get current exe path and set it in Run key
-        r#"
-$exePath = [System.Diagnostics.Process]::GetCurrentProcess().MainModule.FileName
-Set-ItemProperty -Path 'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run' -Name 'PCBareun' -Value "`"$exePath`"" -ErrorAction Stop
+        // 현재 앱의 exe 경로를 Rust에서 가져옴 (PowerShell에서 가져오면 powershell.exe가 됨)
+        let exe_path = std::env::current_exe()
+            .map_err(|e| format!("exe 경로 가져오기 실패: {}", e))?;
+        let exe_str = exe_path.to_string_lossy().to_string();
+        format!(
+            r#"
+Set-ItemProperty -Path 'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run' -Name 'PCBareun' -Value '"{}"' -ErrorAction Stop
 Write-Output 'ok'
-"#
-        .to_string()
+"#,
+            exe_str
+        )
     } else {
         r#"
 Remove-ItemProperty -Path 'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run' -Name 'PCBareun' -ErrorAction SilentlyContinue

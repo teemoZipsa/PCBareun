@@ -53,21 +53,21 @@ export default function SettingsPage() {
   };
 
   const themeOptions: { value: ThemeOption; labelKey: string; icon: React.ReactNode }[] = [
-    { value: "light", labelKey: "settings.themeLight", icon: <Sun className="h-5 w-5" /> },
-    { value: "dark", labelKey: "settings.themeDark", icon: <Moon className="h-5 w-5" /> },
-    { value: "system", labelKey: "settings.themeSystem", icon: <Monitor className="h-5 w-5" /> },
+    { value: "light", labelKey: "settings.themeLight", icon: <Sun className="h-4 w-4" /> },
+    { value: "dark", labelKey: "settings.themeDark", icon: <Moon className="h-4 w-4" /> },
+    { value: "system", labelKey: "settings.themeSystem", icon: <Monitor className="h-4 w-4" /> },
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* 테마 설정 */}
       <Card title={t("settings.theme")} icon={<Palette className="h-4 w-4" />}>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-3 gap-2">
           {themeOptions.map((opt) => (
             <button
               key={opt.value}
               onClick={() => handleThemeChange(opt.value)}
-              className={`flex flex-col items-center gap-2 rounded-[var(--radius-lg)] border-2 p-4 transition-all ${
+              className={`flex flex-col items-center gap-1.5 rounded-[var(--radius-lg)] border-2 p-3 transition-all ${
                 mode === opt.value
                   ? "border-[var(--color-primary)] bg-[var(--color-primary)]/10"
                   : "border-[var(--color-border)] hover:border-[var(--color-muted-foreground)]"
@@ -98,12 +98,12 @@ export default function SettingsPage() {
 
       {/* 언어 설정 */}
       <Card title={t("settings.language")} icon={<Languages className="h-4 w-4" />}>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-3 gap-2">
           {langOptions.map((opt) => (
             <button
               key={opt.value}
               onClick={() => setLang(opt.value)}
-              className={`flex flex-col items-center gap-2 rounded-[var(--radius-lg)] border-2 p-4 transition-all ${
+              className={`flex flex-col items-center gap-1.5 rounded-[var(--radius-lg)] border-2 p-3 transition-all ${
                 lang === opt.value
                   ? "border-[var(--color-primary)] bg-[var(--color-primary)]/10"
                   : "border-[var(--color-border)] hover:border-[var(--color-muted-foreground)]"
@@ -125,14 +125,14 @@ export default function SettingsPage() {
       </Card>
 
       {/* 관리자 권한 */}
-      <Card title="관리자 권한" icon={<ShieldAlert className="h-4 w-4" />}>
+      <Card title={t("settings.adminTitle")} icon={<ShieldAlert className="h-4 w-4" />}>
         <div className="flex items-center justify-between">
           <div>
             <p className="text-sm font-medium text-[var(--color-card-foreground)]">
-              관리자 권한으로 재시작
+              {t("settings.adminRestart")}
             </p>
             <p className="mt-1 text-xs text-[var(--color-muted-foreground)]">
-              SMART 데이터, 서비스 관리, 레지스트리 정리 등 일부 기능은 관리자 권한이 필요합니다.
+              {t("settings.adminDesc")}
             </p>
           </div>
           <button
@@ -152,20 +152,20 @@ export default function SettingsPage() {
             ) : (
               <ShieldAlert className="h-4 w-4" />
             )}
-            재시작
+            {t("settings.restartBtn")}
           </button>
         </div>
       </Card>
 
       {/* 윈도우 시작 시 자동 실행 */}
-      <Card title="시작 프로그램" icon={<Power className="h-4 w-4" />}>
+      <Card title={t("settings.autostart")} icon={<Power className="h-4 w-4" />}>
         <div className="flex items-center justify-between">
           <div>
             <p className="text-sm font-medium text-[var(--color-card-foreground)]">
-              Windows 시작 시 자동 실행
+              {t("settings.autostartTitle")}
             </p>
             <p className="mt-1 text-xs text-[var(--color-muted-foreground)]">
-              PC를 켤 때 PC Bareun이 자동으로 실행됩니다.
+              {t("settings.autostartDesc")}
             </p>
           </div>
           <button
@@ -229,25 +229,17 @@ export default function SettingsPage() {
           </div>
           <div className="flex-1">
             <p className="text-sm font-semibold text-[var(--color-card-foreground)]">
-              {lang === "ko" ? "개발자를 응원해주세요! 🎉" : lang === "ja" ? "開発者を応援してください！🎉" : "Support the Developer! 🎉"}
+              {t("settings.support")}
             </p>
             <p className="mt-0.5 text-xs text-[var(--color-muted-foreground)]">
-              {lang === "ko"
-                ? "작은 후원이 큰 힘이 됩니다. 더 좋은 기능을 만들어갈게요!"
-                : lang === "ja"
-                  ? "少しのサポートが大きな力になります。もっと良い機能を作っていきます！"
-                  : "Your support helps keep this project alive and growing!"}
+              {t("settings.supportDesc")}
             </p>
           </div>
           <button
             onClick={() => invoke("open_url", { url: lang === "ko" ? "https://ctee.kr/place/teemozipsa/post/2" : "https://ko-fi.com/teemozipsa" }).catch(() => {})}
             className="flex shrink-0 items-center gap-2 rounded-full bg-gradient-to-r from-pink-500 to-rose-500 px-5 py-2 text-sm font-semibold text-white shadow-lg shadow-pink-500/20 transition-all hover:shadow-pink-500/40 hover:scale-105 active:scale-95"
           >
-            {lang === "ko" ? (
-              <><Coffee className="h-4 w-4" /> 아이스 아메리카노 사주러 가기</>
-            ) : (
-              <><Coffee className="h-4 w-4" /> Buy me a Ice Americano</>
-            )}
+            <><Coffee className="h-4 w-4" /> {t("settings.supportBtn")}</>
           </button>
         </div>
       </div>
@@ -284,7 +276,7 @@ export default function SettingsPage() {
 
       {/* 하단 */}
       <div className="text-center text-xs text-[var(--color-muted-foreground)] space-y-1">
-        <p>새로운 도구 요청, 버그 신고, 개선 의견 등 어떤 피드백이든 환영합니다!</p>
+        <p>{t("settings.infoSummary")}</p>
         <p>&copy; 2026 PC Bareun. All rights reserved.</p>
       </div>
     </div>

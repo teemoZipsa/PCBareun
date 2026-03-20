@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import SafetyBanner from "@/components/common/SafetyBanner";
 import SkeletonRows from "@/components/common/SkeletonRows";
+import { useT } from "@/i18n/useT";
 
 interface WindowsService {
   name: string;
@@ -29,6 +30,7 @@ type StartTypeFilter = "all" | "Automatic" | "Manual" | "Disabled";
 
 
 export default function ServiceManagerPage() {
+  const t = useT();
   const [services, setServices] = useState<WindowsService[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -146,7 +148,7 @@ export default function ServiceManagerPage() {
         >
           {actionMessage.type === "success" ? <CheckCircle2 className="h-4 w-4 shrink-0" /> : <AlertCircle className="h-4 w-4 shrink-0" />}
           <span>{actionMessage.text}</span>
-          <button onClick={() => setActionMessage(null)} className="ml-auto text-xs opacity-60 hover:opacity-100">닫기</button>
+          <button onClick={() => setActionMessage(null)} className="ml-auto text-xs opacity-60 hover:opacity-100">{t("common.close")}</button>
         </div>
       )}
 
@@ -156,17 +158,17 @@ export default function ServiceManagerPage() {
         <div className="flex items-center gap-1.5 rounded-full border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-1.5 text-xs">
           <Settings2 className="h-3.5 w-3.5 text-[var(--color-primary)]" />
           <span className="font-bold text-[var(--color-card-foreground)]">{stats.total}</span>
-          <span className="text-[var(--color-muted-foreground)]">전체</span>
+          <span className="text-[var(--color-muted-foreground)]">{t("common.all")}</span>
         </div>
         <div className="flex items-center gap-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/5 px-3 py-1.5 text-xs">
           <Power className="h-3.5 w-3.5 text-emerald-400" />
           <span className="font-bold text-emerald-400">{stats.running}</span>
-          <span className="text-emerald-400/70">실행 중</span>
+          <span className="text-emerald-400/70">{t("common.running")}</span>
         </div>
         <div className="flex items-center gap-1.5 rounded-full border border-gray-500/20 bg-gray-500/5 px-3 py-1.5 text-xs">
           <PowerOff className="h-3.5 w-3.5 text-gray-400" />
           <span className="font-bold text-gray-400">{stats.stopped}</span>
-          <span className="text-gray-400/70">중지</span>
+          <span className="text-gray-400/70">{t("common.stopped")}</span>
         </div>
 
         {/* 검색 */}
@@ -228,7 +230,7 @@ export default function ServiceManagerPage() {
       <div className="space-y-1.5">
         {filteredServices.length === 0 ? (
           <p className="py-12 text-center text-sm text-[var(--color-muted-foreground)]">
-            검색 결과가 없습니다.
+            {t("common.noResults")}
           </p>
         ) : (
           filteredServices.map((service) => {
@@ -251,7 +253,7 @@ export default function ServiceManagerPage() {
                     : "border-gray-500/20 bg-gray-500/10 text-gray-400"
                 }`}>
                   <span className={`h-1.5 w-1.5 rounded-full ${isRunning ? "bg-emerald-400" : "bg-gray-400"}`} />
-                  {isRunning ? "실행중" : "중지"}
+                  {isRunning ? t("common.running") : t("common.stopped")}
                 </span>
 
                 {/* 서비스 이름 + 표시 이름 + 설명 */}
@@ -296,7 +298,7 @@ export default function ServiceManagerPage() {
                         className="flex items-center gap-1 rounded-[var(--radius-sm)] border border-red-500/20 px-2 py-1 text-xs font-medium text-red-400 transition-colors hover:bg-red-500/10 disabled:opacity-50"
                       >
                         {isStopLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Square className="h-3 w-3" />}
-                        중지
+                        {t("common.stop")}
                       </button>
                       <button
                         onClick={() => handleAction(service.name, "restart")}
@@ -304,7 +306,7 @@ export default function ServiceManagerPage() {
                         className="flex items-center gap-1 rounded-[var(--radius-sm)] border border-[var(--color-border)] px-2 py-1 text-xs font-medium text-[var(--color-card-foreground)] transition-colors hover:bg-[var(--color-muted)] disabled:opacity-50"
                       >
                         {isRestartLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <RotateCcw className="h-3 w-3" />}
-                        재시작
+                        {t("common.restart")}
                       </button>
                     </>
                   ) : (
@@ -314,7 +316,7 @@ export default function ServiceManagerPage() {
                       className="flex items-center gap-1 rounded-[var(--radius-sm)] border border-emerald-500/20 px-2 py-1 text-xs font-medium text-emerald-400 transition-colors hover:bg-emerald-500/10 disabled:opacity-50"
                     >
                       {isStartLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Play className="h-3 w-3" />}
-                      시작
+                      {t("common.start")}
                     </button>
                   )}
                 </div>
