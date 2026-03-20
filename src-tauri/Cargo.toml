@@ -3,7 +3,7 @@ name = "pc-bareun"
 version = "0.1.2"
 description = "PC Bareun - Modern PC Management Utility"
 authors = ["Seonkyu"]
-license = "MIT"
+license = "Proprietary"
 edition = "2021"
 rust-version = "1.77.2"
 
