@@ -51,8 +51,7 @@ export default function NetworkPage() {
   return (
     <div className="space-y-4">
       <div>
-        <h2 className="text-lg font-bold text-[var(--color-foreground)]">네트워크</h2>
-        <p className="text-sm text-[var(--color-muted-foreground)]">실시간 트래픽 모니터링과 DNS 보안 검사를 한곳에서.</p>
+        <p className="text-sm text-[var(--color-muted-foreground)]">실시간 트래픽 모니터링과 DNS 보안 검사를 한곳에서 관리합니다.</p>
       </div>
 
       {/* Tab selector */}

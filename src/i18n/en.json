@@ -38,7 +38,7 @@
   "desc.softwareUpdater": "Batch update installed software",
   "desc.network": "Monitor real-time network traffic and scan for DNS tampering to prevent security threats",
   "desc.winControl": "Windows Update control & Ultimate Performance power plan",
-  "desc.disk": "Comprehensive disk management with S.M.A.R.T. health diagnostics and folder-level storage analysis",
+  "desc.disk": "Comprehensive disk management with S.M.A.R.T. health diagnostics, storage analysis, and Secure Erase",
   "desc.aiOptimizer": "Scan AI models, manage Ollama, and detect exposed API keys to save disk space and enhance security",
   "desc.portMonitor": "Monitor dev/AI port usage and kill occupying processes",
   "desc.envManager": "PATH diagnostics, dev tool version check, AI cache relocation",
@@ -71,5 +71,8 @@
   "safety.services": "Core Windows services are protected. Only third-party services can be managed here.",
   "safety.programs": "Runs the official uninstaller registered in Windows. No system files are directly deleted.",
   "safety.registry": "Only unused registry entries are scanned. Core Windows registry is never touched.",
-  "safety.debloat": "Only Microsoft Store apps are removed. No impact on core Windows. Apps can be reinstalled anytime."
+  "safety.debloat": "Only Microsoft Store apps are removed. No impact on core Windows. Apps can be reinstalled anytime.",
+
+  "disk.secureErase": "Secure Erase",
+  "disk.secureEraseDesc": "Permanently erase secondary drive data (Secure Erase / Zero-Fill)"
 }

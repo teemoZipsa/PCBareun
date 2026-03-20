@@ -101,6 +101,10 @@ pub fn run() {
 
             commands::process_booster::get_killable_processes,
             commands::process_booster::kill_processes,
+
+            commands::secure_erase::get_erasable_drives,
+            commands::secure_erase::start_secure_erase,
+            commands::secure_erase::get_erase_status,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

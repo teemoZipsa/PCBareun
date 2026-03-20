@@ -38,7 +38,7 @@
   "desc.softwareUpdater": "インストール済みソフトウェアの更新",
   "desc.network": "リアルタイムのネットワーク速度監視とDNS改ざん検査でセキュリティ脅威を事前に防ぎます",
   "desc.winControl": "Windows Update制御と最高性能電源オプション",
-  "desc.disk": "S.M.A.R.T.ディスク健康診断とフォルダ別容量分析でディスク状態を総合管理します",
+  "desc.disk": "S.M.A.R.T.ディスク健康診断、容量分析、Secure Eraseでディスク状態を総合管理します",
   "desc.aiOptimizer": "AIモデルスキャン、Ollama管理、APIキー漏洩検出でディスク節約とセキュリティ強化",
   "desc.portMonitor": "開発/AIポートの占有プロセス確認と強制終了",
   "desc.envManager": "PATH診断、開発ツールバージョン確認、AIキャッシュパス管理",
@@ -71,5 +71,8 @@
   "safety.services": "Windowsのコアサービスは保護されています。ここではサードパーティのサービスのみ管理できます。",
   "safety.programs": "Windowsに登録された公式アンインストーラーを実行します。システムファイルは直接削除しません。",
   "safety.registry": "不要なレジストリのみ検索します。Windowsのコアレジストリには触れません。",
-  "safety.debloat": "Microsoft Storeアプリのみ削除します。Windowsのコア機能に影響はなく、いつでも再インストール可能です。"
+  "safety.debloat": "Microsoft Storeアプリのみ削除します。Windowsのコア機能に影響はなく、いつでも再インストール可能です。",
+
+  "disk.secureErase": "完全消去",
+  "disk.secureEraseDesc": "サブドライブのデータを永久削除（Secure Erase / Zero-Fill）"
 }

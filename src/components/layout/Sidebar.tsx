@@ -139,11 +139,6 @@ export default function Sidebar() {
           >
             <Icon className="w-4 h-4 shrink-0" />
             <span className="truncate text-[13px]">{t(tab.labelKey)}</span>
-            {tab.path === "/ai-optimizer" && (
-              <span className="ml-auto self-center shrink-0 rounded-full bg-purple-500/20 px-1 py-px text-[8px] font-bold leading-none text-purple-400 ring-1 ring-purple-500/30 -translate-y-px">
-                Beta
-              </span>
-            )}
           </NavLink>
           <button
             onClick={(e) => { e.stopPropagation(); toggleFavorite(tab.path); }}

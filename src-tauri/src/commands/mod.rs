@@ -26,4 +26,5 @@ pub mod software_updater;
 pub mod startup;
 pub mod temp_cleaner;
 pub mod vhdx_compactor;
+pub mod secure_erase;
 pub mod wincontrol;

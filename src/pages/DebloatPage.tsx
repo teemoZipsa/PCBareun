@@ -426,7 +426,7 @@ export default function DebloatPage() {
 
       {/* ── 블로트웨어 제거 ── */}
       <Card
-        title={`불필요 기본 앱 제거 (${data.bloatware.length})`}
+        title={`윈도우 기본 탑재 앱 지우기 (${data.bloatware.length})`}
         icon={<Package className="h-4 w-4" />}
       >
         {data.bloatware.length === 0 ? (

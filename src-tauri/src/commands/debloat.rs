@@ -80,7 +80,12 @@ foreach ($app in $installed) {
                elseif($app.Name -match 'FeedbackHub') { '피드백 허브' }
                elseif($app.Name -match 'WindowsMaps') { 'Windows 지도' }
                elseif($app.Name -match 'SoundRecorder') { '녹음기' }
-               elseif($app.Name -match 'Xbox') { 'Xbox 관련 앱' }
+               elseif($app.Name -match 'Xbox.TCUI') { 'Xbox UI 프레임워크' }
+               elseif($app.Name -match 'XboxGameOverlay') { 'Xbox 게임 오버레이' }
+               elseif($app.Name -match 'XboxGamingOverlay') { 'Xbox 게이밍 오버레이' }
+               elseif($app.Name -match 'XboxIdentityProvider') { 'Xbox 자격 증명 (로그인)' }
+               elseif($app.Name -match 'XboxSpeechToTextOverlay') { 'Xbox 음성 인식 오버레이' }
+               elseif($app.Name -match 'Xbox') { 'Xbox 플러그인' }
                elseif($app.Name -match 'YourPhone') { 'Phone Link' }
                elseif($app.Name -match 'ZuneMusic') { 'Groove 음악' }
                elseif($app.Name -match 'ZuneVideo') { '영화 및 TV' }

@@ -149,12 +149,6 @@ export default function AiOptimizerPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-lg font-bold text-[var(--color-foreground)] flex items-center gap-2">
-          AI 및 개발 환경 최적화
-          <span className="inline-flex items-center rounded-full bg-purple-500/20 px-1.5 py-px text-[9px] font-bold leading-none text-purple-400 ring-1 ring-purple-500/30 -translate-y-px">
-            Beta
-          </span>
-        </h2>
         <p className="text-sm text-[var(--color-muted-foreground)]">
           AI 모델, 개발 캐시, 노출된 API 키를 스캔하여 디스크를 절약하고 보안을 강화합니다.
         </p>

@@ -160,7 +160,6 @@ export default function WinControlPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-lg font-bold text-[var(--color-foreground)]">Windows 제어</h2>
         <p className="text-sm text-[var(--color-muted-foreground)]">업데이트, 전원 관리, 종료 타이머를 한곳에서 제어합니다.</p>
       </div>
 

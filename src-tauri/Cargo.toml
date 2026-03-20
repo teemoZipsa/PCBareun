@@ -1,6 +1,6 @@
 [package]
 name = "pc-bareun"
-version = "0.1.0"
+version = "0.1.2"
 description = "PC Bareun - Modern PC Management Utility"
 authors = ["Seonkyu"]
 license = "MIT"

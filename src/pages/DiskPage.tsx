@@ -1,13 +1,15 @@
 import { useState } from "react";
-import { HardDrive, Activity, PieChart } from "lucide-react";
+import { Activity, PieChart, ShieldOff } from "lucide-react";
 
 // 기존 페이지를 import
 import DiskHealthPage from "./DiskHealthPage";
 import DiskVisualizerPage from "./DiskVisualizerPage";
+import SecureErasePage from "./SecureErasePage";
 
 const tabs = [
   { id: "health", label: "상태 점검", icon: Activity, desc: "S.M.A.R.T. 기반 디스크 건강 진단" },
   { id: "visualizer", label: "공간 시각화", icon: PieChart, desc: "폴더별 디스크 사용량 분석" },
+  { id: "secure-erase", label: "완전 삭제", icon: ShieldOff, desc: "보조 드라이브 데이터 영구 삭제 (Secure Erase / Zero-Fill)" },
 ] as const;
 
 type TabId = (typeof tabs)[number]["id"];
@@ -17,12 +19,6 @@ export default function DiskPage() {
 
   return (
     <div className="space-y-4">
-      {/* 탭 헤더 */}
-      <div className="flex items-center gap-2">
-        <HardDrive className="h-5 w-5 text-[var(--color-primary)]" />
-        <h2 className="text-lg font-bold text-[var(--color-card-foreground)]">디스크 관리</h2>
-      </div>
-
       {/* 탭 전환 */}
       <div className="flex gap-2">
         {tabs.map((tab) => {
@@ -51,7 +47,9 @@ export default function DiskPage() {
       </p>
 
       {/* 탭 콘텐츠 */}
-      {activeTab === "health" ? <DiskHealthPage /> : <DiskVisualizerPage />}
+      {activeTab === "health" && <DiskHealthPage />}
+      {activeTab === "visualizer" && <DiskVisualizerPage />}
+      {activeTab === "secure-erase" && <SecureErasePage />}
     </div>
   );
 }
