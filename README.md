@@ -119,15 +119,15 @@ Windows 10/11을 위한 올인원 PC 관리 유틸리티
 
 ## 🏗️ 기술 스택
 
-<table>
-  <tr>
-    <td align="center"><img src="https://tauri.app/logo.svg" width="40"/><br/><b>Tauri v2</b></td>
-    <td align="center"><img src="https://upload.wikimedia.org/wikipedia/commons/a/a7/React-icon.svg" width="40"/><br/><b>React 19</b></td>
-    <td align="center"><img src="https://upload.wikimedia.org/wikipedia/commons/4/4c/Typescript_logo_2020.svg" width="40"/><br/><b>TypeScript</b></td>
-    <td align="center"><img src="https://upload.wikimedia.org/wikipedia/commons/d/d5/Tailwind_CSS_Logo.svg" width="40"/><br/><b>Tailwind CSS v4</b></td>
-    <td align="center"><img src="https://upload.wikimedia.org/wikipedia/commons/d/d5/Rust_programming_language_black_logo.svg" width="40"/><br/><b>Rust</b></td>
-  </tr>
-</table>
+<div align="center">
+
+![Tauri](https://img.shields.io/badge/Tauri_v2-24C8D8?style=for-the-badge&logo=tauri&logoColor=white)
+![React](https://img.shields.io/badge/React_19-61DAFB?style=for-the-badge&logo=react&logoColor=black)
+![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white)
+![Tailwind](https://img.shields.io/badge/Tailwind_CSS_v4-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white)
+![Rust](https://img.shields.io/badge/Rust-000000?style=for-the-badge&logo=rust&logoColor=white)
+
+</div>
 
 - **프론트엔드**: React 19 + TypeScript + Tailwind CSS v4
 - **백엔드**: Rust + PowerShell (시스템 관리 명령)
