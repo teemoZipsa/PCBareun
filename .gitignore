@@ -25,3 +25,9 @@ Thumbs.db
 # Logs
 *.log
 .claude/
+
+# Debug & test files
+debug_*.ps1
+debug_*.txt
+build_errors.txt
+test_*.ps1
