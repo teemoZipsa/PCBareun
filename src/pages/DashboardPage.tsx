@@ -1,6 +1,8 @@
 import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useT } from "@/i18n/useT";
+import { useToastStore } from "@/store/toastStore";
+import { useNavigate } from "react-router-dom";
 import {
   Cpu,
   MemoryStick,
@@ -17,6 +19,7 @@ import {
   Loader2,
   MonitorSmartphone,
   Skull,
+  ChevronRight,
 } from "lucide-react";
 import Card from "@/components/common/Card";
 import GaugeChart from "@/components/common/GaugeChart";
@@ -70,6 +73,7 @@ function getHealthColor(score: number): string {
 
 export default function DashboardPage() {
   const t = useT();
+  const navigate = useNavigate();
   const [data, setData] = useState<SystemOverview | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -137,7 +141,10 @@ export default function DashboardPage() {
       const after = await invoke<{ total_gb: number; used_gb: number; available_gb: number; usage_percent: number }>("get_memory_status");
       const afterMb = after.used_gb * 1024;
       setOptimizeResult({ before: Math.round(beforeMb), after: Math.round(afterMb), freed: Math.round(beforeMb - afterMb) });
-    } catch (_e) { /* ignore */ }
+      useToastStore.getState().addToast("success", `${Math.round(beforeMb - afterMb)}MB 메모리 확보됨`);
+    } catch (_e) {
+      useToastStore.getState().addToast("error", "메모리 최적화 실패");
+    }
     setOptimizing(false);
   };
 
@@ -341,6 +348,30 @@ export default function DashboardPage() {
       <TempErrorBoundary>
         <TempSection />
       </TempErrorBoundary>
+
+      {/* 이것부터 해보세요 가이드 */}
+      <Card title="이것부터 해보세요" icon={<Zap className="h-4 w-4" />}>
+        <div className="space-y-2">
+          {[
+            { icon: "🧹", label: "임시 파일 정리", desc: "디스크 공간을 확보합니다", path: "/temp-cleaner" },
+            { icon: "🚀", label: "시작 프로그램 정리", desc: "부팅 속도를 개선합니다", path: "/startup-manager" },
+            { icon: "🛡️", label: "레지스트리 정리", desc: "시스템 안정성을 높입니다", path: "/registry-cleaner" },
+          ].map((item) => (
+            <button
+              key={item.path}
+              onClick={() => navigate(item.path)}
+              className="flex w-full items-center gap-3 rounded-[var(--radius-md)] border border-transparent px-3 py-2.5 text-left transition-all hover:border-[var(--color-border)] hover:bg-[var(--color-muted)]/30"
+            >
+              <span className="text-lg">{item.icon}</span>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-[var(--color-card-foreground)]">{item.label}</p>
+                <p className="text-xs text-[var(--color-muted-foreground)]">{item.desc}</p>
+              </div>
+              <ChevronRight className="h-4 w-4 shrink-0 text-[var(--color-muted-foreground)]" />
+            </button>
+          ))}
+        </div>
+      </Card>
 
       {/* 메모리 최적화 결과 팝업 */}
       {optimizeResult && (

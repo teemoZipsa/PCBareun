@@ -28,9 +28,11 @@ import TempCleanerPage from "./pages/TempCleanerPage";
 import WinControlPage from "./pages/WinControlPage";
 import AiOptimizerPage from "./pages/AiOptimizerPage";
 import ProcessBoosterPage from "./pages/ProcessBoosterPage";
+import ToastContainer from "./components/common/Toast";
 
 export default function App() {
   return (
+    <>
     <Routes>
       <Route element={<MainLayout />}>
         <Route path="/" element={<DashboardPage />} />
@@ -64,5 +66,7 @@ export default function App() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>
+    <ToastContainer />
+    </>
   );
 }

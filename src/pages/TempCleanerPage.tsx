@@ -25,6 +25,7 @@ import {
 import Card from "@/components/common/Card";
 import SafetyBanner from "@/components/common/SafetyBanner";
 import { useScanCacheStore } from "@/store/scanCacheStore";
+import { useToastStore } from "@/store/toastStore";
 
 /* ── Types ─────────────────────────────────────── */
 
@@ -233,9 +234,21 @@ export default function TempCleanerPage() {
       if (cleanSummary) {
         setSummary(cleanSummary);
       }
+
+      // 토스트 알림
+      const totalCleaned = cleanSummary?.total_cleaned_bytes ?? 0;
+      const totalFiles = cleanSummary?.total_cleaned_files ?? 0;
+      const failedCount = cleanSummary?.results.reduce((s, r) => s + r.failed_files, 0) ?? 0;
+      useToastStore.getState().addToast(
+        "success",
+        `${totalFiles}개 항목 정리 완료 (${formatBytes(totalCleaned)} 확보)`,
+        failedCount > 0 ? `⚠️ ${failedCount}개 파일은 접근 권한 부족으로 건너뜀` : undefined
+      );
+
       setPhase("done");
     } catch (err) {
       setError(String(err));
+      useToastStore.getState().addToast("error", "정리 실패", String(err));
       setPhase("scanned");
     }
   }, [selected]);

@@ -16,6 +16,7 @@ import {
 import Card from "@/components/common/Card";
 import SafetyBanner from "@/components/common/SafetyBanner";
 import { useScanCacheStore } from "@/store/scanCacheStore";
+import { useToastStore } from "@/store/toastStore";
 
 /* ── Types ─────────────────────────────────────── */
 
@@ -163,9 +164,15 @@ export default function RegistryCleanerPage() {
         issuesJson: JSON.stringify(issues),
       });
       setFixResult(result);
+      useToastStore.getState().addToast(
+        "success",
+        `${result.fixed_count}개 레지스트리 항목 정리 완료`,
+        result.failed_count > 0 ? `${result.failed_count}개 항목은 수정할 수 없어 건너뜀` : undefined
+      );
       setPhase("done");
     } catch (err) {
       setError(String(err));
+      useToastStore.getState().addToast("error", "레지스트리 정리 실패", String(err));
       setPhase("scanned");
     }
   }, [selected, issues]);

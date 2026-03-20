@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import Card from "@/components/common/Card";
 import SafetyBanner from "@/components/common/SafetyBanner";
+import { useToastStore } from "@/store/toastStore";
 
 /* ── Types ─────────────────────────────────────── */
 
@@ -174,9 +175,11 @@ export default function DebloatPage() {
         packageNames: Array.from(selectedApps),
       });
       setActionMsg({ type: "success", text: result });
+      useToastStore.getState().addToast("success", `${selectedApps.size}개 기본 앱 제거 완료`);
       await fetchStatus();
     } catch (err) {
       setActionMsg({ type: "error", text: String(err) });
+      useToastStore.getState().addToast("error", "앱 제거 실패", String(err));
     } finally {
       setRemoving(false);
     }
@@ -428,8 +431,10 @@ export default function DebloatPage() {
                             try {
                               const result = await invoke<string>("uninstall_program", { uninstallString: prog.uninstall_string });
                               setActionMsg({ type: "success", text: `${prog.name}: ${result}` });
+                              useToastStore.getState().addToast("success", `${prog.name} 제거 완료`);
                             } catch (err) {
                               setActionMsg({ type: "error", text: String(err) });
+                              useToastStore.getState().addToast("error", `${prog.name} 제거 실패`, String(err));
                             } finally {
                               setUninstallingName(null);
                             }
