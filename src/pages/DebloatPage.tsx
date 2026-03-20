@@ -69,6 +69,47 @@ const categoryLabels: Record<string, string> = {
   suggestions: "제안/추천",
 };
 
+/** Map partial package-name keywords → emoji */
+const appIconMap: [string, string][] = [
+  ["BingNews", "📰"],
+  ["BingWeather", "🌤️"],
+  ["GetHelp", "❓"],
+  ["Getstarted", "💡"],
+  ["OfficeHub", "📎"],
+  ["Solitaire", "🃏"],
+  ["People", "👥"],
+  ["PowerAutomate", "⚡"],
+  ["Todos", "✅"],
+  ["Alarms", "⏰"],
+  ["Communications", "📧"],
+  ["FeedbackHub", "💬"],
+  ["Maps", "🗺️"],
+  ["SoundRecorder", "🎙️"],
+  ["Xbox", "🎮"],
+  ["YourPhone", "📱"],
+  ["ZuneMusic", "🎵"],
+  ["ZuneVideo", "🎬"],
+  ["549981C3F5F10", "🤖"],  // Cortana
+  ["GamingApp", "🎮"],
+  ["ScreenSketch", "✂️"],
+  ["StickyNotes", "📝"],
+  ["Camera", "📷"],
+  ["Clipchamp", "🎞️"],
+  ["Paint", "🎨"],
+  ["OneDrive", "☁️"],
+  ["Teams", "💼"],
+  ["Skype", "💬"],
+  ["LinkedIn", "💼"],
+  ["OneNote", "📓"],
+];
+
+function getAppIcon(packageName: string): string {
+  for (const [keyword, icon] of appIconMap) {
+    if (packageName.includes(keyword)) return icon;
+  }
+  return "📦";
+}
+
 /* ── Component ──────────────────────────────────── */
 
 export default function DebloatPage() {
@@ -479,6 +520,7 @@ export default function DebloatPage() {
                     onChange={() => toggleApp(app.package_name)}
                     className="cb-check"
                   />
+                  <span className="text-base leading-none" role="img">{getAppIcon(app.package_name)}</span>
                   <span className="text-sm text-[var(--color-card-foreground)] truncate">
                     {app.name}
                   </span>
