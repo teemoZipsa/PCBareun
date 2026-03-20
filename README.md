@@ -121,7 +121,7 @@ Windows 10/11을 위한 올인원 PC 관리 유틸리티
 
 <table>
   <tr>
-    <td align="center"><img src="https://raw.githubusercontent.com/nicepkg/gpt-runner/main/docs/public/tauri.svg" width="40"/><br/><b>Tauri v2</b></td>
+    <td align="center"><img src="https://tauri.app/logo.svg" width="40"/><br/><b>Tauri v2</b></td>
     <td align="center"><img src="https://upload.wikimedia.org/wikipedia/commons/a/a7/React-icon.svg" width="40"/><br/><b>React 19</b></td>
     <td align="center"><img src="https://upload.wikimedia.org/wikipedia/commons/4/4c/Typescript_logo_2020.svg" width="40"/><br/><b>TypeScript</b></td>
     <td align="center"><img src="https://upload.wikimedia.org/wikipedia/commons/d/d5/Tailwind_CSS_Logo.svg" width="40"/><br/><b>Tailwind CSS v4</b></td>
